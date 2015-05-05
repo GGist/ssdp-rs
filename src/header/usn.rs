@@ -2,7 +2,7 @@ use std::fmt::{Formatter, Display, Result};
 
 use hyper::header::{HeaderFormat, Header};
 
-use {FieldPair};
+use {FieldMap};
 use field;
 
 const USN_HEADER_NAME: &'static str = "USN";
@@ -12,12 +12,12 @@ const FIELD_PAIR_SEPARATOR: &'static str = "::";
 
 /// Represents a USN header which specifies a Unique Service Name.
 ///
-/// Field value can hold up to two FieldPairs.
+/// Field value can hold up to two FieldMaps.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct USN(pub FieldPair, pub Option<FieldPair>);
+pub struct USN(pub FieldMap, pub Option<FieldMap>);
 
 impl USN {
-    pub fn new(field: FieldPair, opt_field: Option<FieldPair>) -> USN {
+    pub fn new(field: FieldMap, opt_field: Option<FieldMap>) -> USN {
         USN(field, opt_field)
     }
 }
@@ -37,8 +37,8 @@ impl Header for USN {
         }
         
         let (first, second) = match partition_pairs(raw[0][..].iter()) {
-            Some((n, Some(u))) => (FieldPair::new(&n[..]), FieldPair::new(&u[..])),
-            Some((n, None))    => (FieldPair::new(&n[..]), None),
+            Some((n, Some(u))) => (FieldMap::new(&n[..]), FieldMap::new(&u[..])),
+            Some((n, None))    => (FieldMap::new(&n[..]), None),
             None               => return None
         };
 
@@ -111,7 +111,7 @@ mod tests {
     use hyper::header::{Header};
     
     use super::{USN};
-    use ssdp::FieldPair::{UPnP, UUID, URN, Unknown};
+    use FieldMap::{UPnP, UUID, URN, Unknown};
     
     #[test]
     fn positive_double_pair() {

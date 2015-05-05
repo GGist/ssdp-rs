@@ -2,7 +2,7 @@ use std::fmt::{Formatter, Display, Result};
 
 use hyper::header::{HeaderFormat, Header};
 
-use {FieldPair};
+use {FieldMap};
 
 const ST_HEADER_NAME: &'static str = "ST";
 
@@ -12,7 +12,7 @@ const ST_ALL_VALUE: &'static str = "ssdp:all";
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ST {
     All,
-    Target(FieldPair)
+    Target(FieldMap)
 }
 
 unsafe impl Sync for ST { }
@@ -32,7 +32,7 @@ impl Header for ST {
         if &raw[0][..] == ST_ALL_VALUE.as_bytes() {
             Some(ST::All)
         } else {
-            FieldPair::new(&raw[0][..]).map( |x| ST::Target(x) )
+            FieldMap::new(&raw[0][..]).map( |x| ST::Target(x) )
         }
     }
 }
@@ -52,7 +52,7 @@ impl HeaderFormat for ST {
 mod tests {
     use hyper::header::{Header};
     
-    use ssdp::{FieldPair};
+    use {FieldMap};
     use super::{ST};
     
     #[test]
@@ -70,8 +70,8 @@ mod tests {
         let st_upnp_root_header = &[b"upnp:some_identifier"[..].to_vec()];
     
         match ST::parse_header(st_upnp_root_header) {
-            Some(ST::Target(FieldPair::UPnP(_))) => (),
-            _ => panic!("Failed To Match ST::Target Header To FieldPair::UPnP")
+            Some(ST::Target(FieldMap::UPnP(_))) => (),
+            _ => panic!("Failed To Match ST::Target Header To FieldMap::UPnP")
         }
     }
     
@@ -80,8 +80,8 @@ mod tests {
         let st_urn_root_header = &[b"urn:some_identifier"[..].to_vec()];
     
         match ST::parse_header(st_urn_root_header) {
-            Some(ST::Target(FieldPair::URN(_))) => (),
-            _ => panic!("Failed To Match ST::Target Header To FieldPair::URN")
+            Some(ST::Target(FieldMap::URN(_))) => (),
+            _ => panic!("Failed To Match ST::Target Header To FieldMap::URN")
         }
     }
     
@@ -90,8 +90,8 @@ mod tests {
         let st_uuid_root_header = &[b"uuid:some_identifier"[..].to_vec()];
     
         match ST::parse_header(st_uuid_root_header) {
-            Some(ST::Target(FieldPair::UUID(_))) => (),
-            _ => panic!("Failed To Match ST::Target Header To FieldPair::UUID")
+            Some(ST::Target(FieldMap::UUID(_))) => (),
+            _ => panic!("Failed To Match ST::Target Header To FieldMap::UUID")
         }
     }
 }

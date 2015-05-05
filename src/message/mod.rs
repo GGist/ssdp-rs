@@ -1,4 +1,3 @@
-
 use std::borrow::{Cow};
 
 use hyper::buffer::{BufReader};
@@ -10,16 +9,10 @@ use hyper::version::{HttpVersion};
 
 use {SSDPResult, SSDPError};
 use header::{HeaderRef, HeaderMut};
+use stream::{FromRawSSDP};
 
 const NOTIFY_HEADER: &'static str = "NOTIFY";
 const SEARCH_HEADER: &'static str = "M-SEARCH";
-/*
-pub trait Sendable {
-    fn unicast<T>(&self, dest: T) -> Result<SSDPReceiver<SSDPMessage>>
-        where T: ToSocketAddrs;
-    
-    fn multicast(&self) -> Result<SSDPReceiver<SSDPMessage>>;
-}*/
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub enum MessageType {
@@ -42,7 +35,22 @@ impl SSDPMessage {
         SSDPMessage{ method: message_type, headers: Headers::new() }
     }
     
-    pub fn from_bytes<T>(message: &[u8]) -> SSDPResult<SSDPMessage> {
+    pub fn message_type(&self) -> MessageType {
+        self.method
+    }
+    /*
+    pub fn unicast<T>(dest: T) -> Result<SSDPReceiver<SSDPMessage>>
+        where T: ToSocketAddrs {
+        
+    }
+    
+    pub fn multicast() -> Result<SSDPReceiver<SSDPMessage>> {
+        
+    }*/
+}
+
+impl FromRawSSDP for SSDPMessage {
+    fn raw_ssdp(bytes: &[u8]) -> SSDPResult<SSDPMessage> {
         let mut buf_reader = BufReader::new(message_bytes);
         
         if let Ok(parts) = http::parse_request(&mut buf_reader) {
@@ -52,10 +60,6 @@ impl SSDPMessage {
         } else {
             Err(SSDPError::InvalidHttp(message_bytes.to_owned()))
         }
-    }
-    
-    pub fn message_type(&self) -> MessageType {
-        self.method
     }
 }
 
@@ -78,17 +82,6 @@ impl HeaderMut for SSDPMessage {
         HeaderMut::set_raw(&mut self.headers, name, value)
     }
 }
-/*
-impl Sendable for SSDPMessage {
-    pub fn unicast<T>(dest: T) -> Result<SSDPReceiver<SSDPMessage>>
-        where T: ToSocketAddrs {
-        
-    }
-    
-    pub fn multicast() -> Result<SSDPReceiver<SSDPMessage>> {
-        
-    }
-}*/
 
 /// Attempts to construct an SSDPMessage from the given request pieces.
 fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSDPMessage> {

@@ -10,7 +10,7 @@ mod field;
 pub mod header;
 pub mod message;
 
-pub use field::{FieldPair};
+pub use field::{FieldMap};
 
 pub type SSDPResult<T> = Result<T, SSDPError>;
 

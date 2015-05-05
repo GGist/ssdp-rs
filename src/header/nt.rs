@@ -2,18 +2,18 @@ use std::fmt::{Formatter, Display, Result};
 
 use hyper::header::{HeaderFormat, Header};
 
-use {FieldPair};
+use {FieldMap};
 
 const NT_HEADER_NAME: &'static str = "NT";
 
 /// Represents an NT header which specifies a Notification Type.
 ///
-/// Any double colons will not be processed as separate FieldPairs.
+/// Any double colons will not be processed as separate FieldMaps.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct NT(pub FieldPair);
+pub struct NT(pub FieldMap);
 
 impl NT {
-    pub fn new(field: FieldPair) -> NT {
+    pub fn new(field: FieldMap) -> NT {
         NT(field)
     }
 }
@@ -32,7 +32,7 @@ impl Header for NT {
             return None
         }
         
-        match FieldPair::new(&raw[0][..]) {
+        match FieldMap::new(&raw[0][..]) {
             Some(n) => Some(NT(n)),
             None    => None
         }
@@ -52,7 +52,7 @@ mod tests {
     use hyper::header::{Header};
     
     use super::{NT};
-    use ssdp::FieldPair::{UPnP, UUID, URN, Unknown};
+    use FieldMap::{UPnP, UUID, URN, Unknown};
 
     #[test]
     fn positive_uuid() {
