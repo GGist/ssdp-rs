@@ -1,8 +1,9 @@
-#![feature(collections, libc, udp)]
+#![feature(collections, into_cow, libc, udp)]
 
 extern crate hyper;
 extern crate libc;
 extern crate time;
+extern crate url;
 
 mod error;
 mod field;

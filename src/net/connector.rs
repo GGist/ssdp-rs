@@ -1,5 +1,5 @@
 use std::io::{Error, ErrorKind, Result};
-use std::net::{UdpSocket, ToSocketAddrs};
+use std::net::{UdpSocket, ToSocketAddrs, SocketAddr};
 
 use hyper::net::{NetworkConnector};
 
@@ -14,21 +14,17 @@ impl UdpConnector {
     /// Create a new UdpConnector that will be bound to the given local address.
     pub fn new<A: ToSocketAddrs>(local_addr: A) -> Result<UdpConnector> {
         let udp = try!(UdpSocket::bind(local_addr));
+        
         udp.set_multicast_loop(false).unwrap();
         //udp.set_time_to_live(100).unwrap();
         udp.set_multicast_time_to_live(255).unwrap();
+        
         Ok(UdpConnector(udp))
     }
     
-    /// Creates a PacketReceiver that can be used to receive packets from the
-    /// underlying UdpSocket of the current UdpConnector.
-    ///
-    /// For semantical information as to what constitutes a packet, see 
-    /// net::receiver::PacketReceiver.
-    pub fn receiver(&self) -> Result<PacketReceiver> {
-        let udp_clone = try!(self.0.try_clone());
-    
-        Ok(PacketReceiver::new(udp_clone))
+    /// Attempts to clone the underlying parts of the UdpConnector.
+    pub fn clone_udp(&self) -> Result<UdpSocket> {
+        self.0.try_clone()
     }
 }
 
