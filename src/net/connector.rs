@@ -3,7 +3,7 @@ use std::net::{UdpSocket, ToSocketAddrs};
 
 use hyper::net::{NetworkConnector};
 
-use net::receiver::{PacketReceiver};
+use net::packet::{PacketReceiver};
 use net::sender::{UdpSender};
 
 /// A UdpConnector allows Hyper to obtain NetworkStream objects over UdpSockets 

@@ -9,7 +9,7 @@ use hyper::version::{HttpVersion};
 
 use {SSDPResult, SSDPError};
 use header::{HeaderRef, HeaderMut};
-use stream::{FromRawSSDP};
+use receiver::{FromRawSSDP};
 
 const NOTIFY_HEADER: &'static str = "NOTIFY";
 const SEARCH_HEADER: &'static str = "M-SEARCH";
@@ -51,14 +51,14 @@ impl SSDPMessage {
 
 impl FromRawSSDP for SSDPMessage {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<SSDPMessage> {
-        let mut buf_reader = BufReader::new(message_bytes);
+        let mut buf_reader = BufReader::new(bytes);
         
         if let Ok(parts) = http::parse_request(&mut buf_reader) {
             message_from_request(parts)
         } else if let Ok(parts) = http::parse_response(&mut buf_reader) {
             message_from_response(parts)
         } else {
-            Err(SSDPError::InvalidHttp(message_bytes.to_owned()))
+            Err(SSDPError::InvalidHttp(bytes.to_owned()))
         }
     }
 }
