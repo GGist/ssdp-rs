@@ -1,5 +1,6 @@
 use std::error::{Error};
 use std::fmt::{self, Display, Formatter};
+use std::marker::{Reflect};
 
 pub type SSDPResult<T> = Result<T, SSDPError>;
 
@@ -66,5 +67,30 @@ impl Display for SSDPError {
                 f.write_fmt(format_args!("Other: {}", n.description()))
             }
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct MsgError {
+    desc: &'static str
+}
+
+impl MsgError {
+    pub fn new(desc: &'static str) -> MsgError {
+        MsgError{ desc: desc }
+    }
+}
+
+impl Reflect for MsgError { }
+
+impl Error for MsgError {
+    fn description(&self) -> &str {
+        self.desc
+    }
+}
+
+impl Display for MsgError {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
+        f.write_str(self.desc)
     }
 }

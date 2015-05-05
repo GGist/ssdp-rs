@@ -1,5 +1,6 @@
 use std::borrow::{Cow, IntoCow, ToOwned};
 use std::error::{Error};
+use std::iter::{Iterator};
 use std::net::{ToSocketAddrs, UdpSocket, SocketAddr};
 
 use hyper::buffer::{BufReader};
@@ -12,10 +13,19 @@ use hyper::uri::{RequestUri};
 use hyper::version::{HttpVersion};
 use url::{Url, SchemeData};
 
-use {SSDPResult, SSDPError};
+use {SSDPResult, SSDPError, MsgError};
 use header::{HeaderRef, HeaderMut};
 use net::connector::{UdpConnector};
 use receiver::{FromRawSSDP};
+
+pub mod search;
+
+const UPNP_MULTICAST_ADDR: (u8, u8, u8, u8) = (239, 255, 255, 250);
+const UPNP_MULTICAST_PORT: u16 = 1900;
+
+const VALID_RESPONSE_CODE: u16 = 200;
+
+const BASE_UNICAST_URL: &'static str = "udp://";
 
 const NOTIFY_METHOD: &'static str = "NOTIFY";
 const SEARCH_METHOD: &'static str = "M-SEARCH";
@@ -27,7 +37,7 @@ pub enum MessageType {
     /// A search message.
     Search,
     /// A response to a search message.
-    Response(u16)
+    Response
 }
 
 #[derive(Debug, Clone)]
@@ -45,61 +55,63 @@ impl SSDPMessage {
         self.method
     }
     
-    pub fn send<A: ToSocketAddrs>(&self, dest_addr: A) -> Result<UdpSocket, Box<Error>> {
-        let mut connector = try!(UdpConnector::new(dest_addr).map_err(|e|
-            Box::new(e) as Box<Error>
+    pub fn send<A: ToSocketAddrs>(&self, local_addr: A, dst_addr: A) -> SSDPResult<UdpSocket> {
+        let mut connector = try!(UdpConnector::new(local_addr).map_err(|e|
+            SSDPError::Other(Box::new(e) as Box<Error>)
         ));
+        let url = try!(url_from_addr(dst_addr).map_err(|e| SSDPError::Other(e) ));
         
         match self.method {
             MessageType::Notify => {
-                try!(send_request(NOTIFY_METHOD, &self.headers, &mut connector))
+                try!(send_request(NOTIFY_METHOD, &self.headers, &mut connector, url))
             },
             MessageType::Search => {
-                try!(send_request(SEARCH_METHOD, &self.headers, &mut connector))
+                try!(send_request(SEARCH_METHOD, &self.headers, &mut connector, url))
             },
-            MessageType::Response(n) => {
+            MessageType::Response => {
                 panic!("Unimplemented")
             }
         }
         
-        connector.clone_udp().map_err(|e| Box::new(e) as Box<Error>)
+        connector.clone_udp().map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>))
     }
-    /*
-    pub fn unicast<T>(dest: T) -> Result<SSDPReceiver<SSDPMessage>>
-        where T: ToSocketAddrs {
-        
-    }
-    
-    pub fn multicast() -> Result<SSDPReceiver<SSDPMessage>> {
-        
-    }*/
 }
 
 /// Construct and send a request on the UdpConnector with the supplied method
 /// and headers.
-fn send_request(method: &str, headers: &Headers, connector: &mut UdpConnector)
-    -> Result<(), Box<Error>> {
+fn send_request(method: &str, headers: &Headers, connector: &mut UdpConnector, url: Url)
+    -> SSDPResult<()> {
     let mut request = try!(Request::with_connector(
         Method::Extension(NOTIFY_METHOD.to_owned()),
-        build_mock_url(),
+        url,
         connector
-    ).map_err(|e| Box::new(e) as Box<Error>));
+    ).map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>)));
     
     copy_headers(&headers, &mut request.headers_mut());
     
     // Send Will Always Fail As Per The UdpConnector So Ignore That Result
-    try!(request.start().map_err(|e| Box::new(e) as Box<Error>)).send();
+    try!(request.start().map_err(|e| 
+        SSDPError::Other(Box::new(e) as Box<Error>)
+    )).send();
     
     Ok(())
 }
 
-/// Creates a mock Url in instances where we are using our custom UdpConnector
-/// to send to a host on a SocketAddr where a Url is not necessary for us.
-fn build_mock_url() -> Url {
-    Url{ scheme: "".to_owned(),
-         scheme_data: SchemeData::NonRelative("".to_owned()),
-         query: None,
-         fragment: None }
+/// Accepts a socket address and converts it to a Url with a default base
+/// of "udp://".
+fn url_from_addr<A: ToSocketAddrs>(addr: A) -> Result<Url, Box<Error>> {
+    let mut sock_iter = try!(addr.to_socket_addrs());
+    
+    let sock_addr = match sock_iter.next() {
+        Some(n) => n,
+        None    => return Err(Box::new(MsgError::new("Invalid SocketAddr")) as Box<Error>)
+    };
+    
+    let str_url = BASE_UNICAST_URL.chars()
+        .chain(sock_addr.to_string()[..].chars())
+        .collect::<String>();
+    
+    Url::parse(&str_url[..]).map_err(|e| Box::new(e) as Box<Error>)
 }
 
 /// Copy the headers from the source header struct to the destination header struct.
@@ -176,13 +188,21 @@ fn message_from_response(parts: Incoming<RawStatus>) -> SSDPResult<SSDPMessage> 
     let headers = parts.headers;
     
     try!(validate_http_version(parts.version));
+    try!(validate_response_code(status_code));
     
-    Ok(SSDPMessage{ method: MessageType::Response(status_code), headers: headers })
+    Ok(SSDPMessage{ method: MessageType::Response, headers: headers })
 }
 
 /// Validate the HTTP version for an SSDP message.
 fn validate_http_version(version: HttpVersion) -> SSDPResult<()> {
     if version != HttpVersion::Http11 {
         Err(SSDPError::InvalidHttpVersion)
+    } else { Ok(()) }
+}
+
+/// Validate the response code for an SSDP message.
+fn validate_response_code(code: u16) -> SSDPResult<()> {
+    if code != VALID_RESPONSE_CODE {
+        Err(SSDPError::ResponseCode(code))
     } else { Ok(()) }
 }

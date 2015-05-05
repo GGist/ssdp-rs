@@ -1,4 +1,4 @@
-#![feature(collections, into_cow, libc, udp)]
+#![feature(core, collections, into_cow, libc, udp)]
 
 extern crate hyper;
 extern crate libc;
@@ -13,5 +13,5 @@ mod receiver;
 pub mod header;
 pub mod message;
 
-pub use error::{SSDPError, SSDPResult};
+pub use error::{SSDPError, SSDPResult, MsgError};
 pub use field::{FieldMap};
