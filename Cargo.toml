@@ -1,0 +1,9 @@
+[package]
+name = "ssdp"
+version = "0.1.0"
+authors = ["= <amiller4421@gmail.com>"]
+
+[dependencies]
+hyper = "*"
+time = "*"
+url = "*"
