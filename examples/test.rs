@@ -1,10 +1,24 @@
+extern crate ssdp;
+extern crate hyper;
 
-extern crate url;
-
-use url::{Url};
+use hyper::{Url};
+use hyper::header::{ContentLength};
+use ssdp::header::{HeaderMut, Man, MX, ST};
+use ssdp::message::search::{SearchRequest};
 
 fn main() {
-    let x = Url::parse("udp://192.168.1.1:1900").unwrap();
+    let mut request = SearchRequest::new();
+    
+    request.set(Man);
+    request.set(MX(1));
+    request.set(ST::All);
+    request.set(ContentLength(0));
+    
+    let response = request.unicast("10.0.1.4:0", "239.255.255.250:1900").unwrap();
+    
+    for i in response {
+        println!("{:?}", i);
+    }
 }
 /*
 fn main() {

@@ -1,4 +1,5 @@
 use std::error::{Error};
+use std::io::Error as IoError;
 use std::fmt::{self, Display, Formatter};
 use std::marker::{Reflect};
 
@@ -33,6 +34,8 @@ pub enum SSDPError {
     ///
     /// Header name with error message are supplied.
     InvalidHeader(&'static str, &'static str),
+    /// IO error occurred.
+    IoError(IoError),
     /// Some other error occurred.
     Other(Box<Error>)
 }
@@ -62,6 +65,9 @@ impl Display for SSDPError {
             },
             SSDPError::InvalidHeader(name, value) => {
                 f.write_fmt(format_args!("Invalid Header: {}: {}", name, value))
+            },
+            SSDPError::IoError(ref n) => {
+                f.write_fmt(format_args!("IoError: {}", n))
             },
             SSDPError::Other(ref n) => {
                 f.write_fmt(format_args!("Other: {}", n.description()))

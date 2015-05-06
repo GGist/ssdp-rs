@@ -15,11 +15,12 @@ impl UdpConnector {
     pub fn new<A: ToSocketAddrs>(local_addr: A) -> Result<UdpConnector> {
         let udp = try!(UdpSocket::bind(local_addr));
         
-        udp.set_multicast_loop(false).unwrap();
-        //udp.set_time_to_live(100).unwrap();
-        udp.set_multicast_time_to_live(255).unwrap();
-        
         Ok(UdpConnector(udp))
+    }
+    
+    /// Destroy the UdpConnector and return the underlying UdpSocket.
+    pub fn deconstruct(self) -> UdpSocket {
+        self.0
     }
     
     /// Attempts to clone the underlying parts of the UdpConnector.

@@ -1,12 +1,14 @@
 use std::borrow::{Cow, IntoCow, ToOwned};
 use std::error::{Error};
+use std::io::{ErrorKind};
+use std::io::Error as IoError;
 use std::iter::{Iterator};
 use std::net::{ToSocketAddrs, UdpSocket, SocketAddr};
 
 use hyper::buffer::{BufReader};
 use hyper::client::request::{Request};
 use hyper::error::{HttpResult};
-use hyper::header::{Headers, Header, HeaderFormat};
+use hyper::header::{Headers, Header, HeaderFormat, Host};
 use hyper::http::{self, Incoming, RawStatus};
 use hyper::method::{Method};
 use hyper::uri::{RequestUri};
@@ -25,11 +27,12 @@ const UPNP_MULTICAST_PORT: u16 = 1900;
 
 const VALID_RESPONSE_CODE: u16 = 200;
 
-const BASE_UNICAST_URL: &'static str = "udp://";
+const BASE_UNICAST_URL: &'static str = "http://";
 
 const NOTIFY_METHOD: &'static str = "NOTIFY";
 const SEARCH_METHOD: &'static str = "M-SEARCH";
 
+/// Enumerates the different types of SSDP messages.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub enum MessageType {
     /// A notify message.
@@ -40,6 +43,8 @@ pub enum MessageType {
     Response
 }
 
+/// An SSDPMessage represents an SSDP method combined with both SSDP and HTTP
+/// headers.
 #[derive(Debug, Clone)]
 pub struct SSDPMessage {
     method:  MessageType,
@@ -47,74 +52,85 @@ pub struct SSDPMessage {
 }
 
 impl SSDPMessage {
+    /// Construct a new SSDPMessage.
     pub fn new(message_type: MessageType) -> SSDPMessage {
         SSDPMessage{ method: message_type, headers: Headers::new() }
     }
     
+    /// Get the type of this message.
     pub fn message_type(&self) -> MessageType {
         self.method
     }
     
-    pub fn send<A: ToSocketAddrs>(&self, local_addr: A, dst_addr: A) -> SSDPResult<UdpSocket> {
-        let mut connector = try!(UdpConnector::new(local_addr).map_err(|e|
-            SSDPError::Other(Box::new(e) as Box<Error>)
-        ));
-        let url = try!(url_from_addr(dst_addr).map_err(|e| SSDPError::Other(e) ));
+    /// Send this request to the given destination address using the given connector.
+    ///
+    /// It is important to note that the Host header field will be overwritten
+    /// with the destination address specified.
+    pub fn send<A: ToSocketAddrs>(&self, connector: &mut UdpConnector, dst_addr: A) -> SSDPResult<()> {
+        let dst_sock_addr = try!(addr_from_trait(dst_addr));
         
         match self.method {
             MessageType::Notify => {
-                try!(send_request(NOTIFY_METHOD, &self.headers, &mut connector, url))
+                send_request(NOTIFY_METHOD, &self.headers, connector, dst_sock_addr)
             },
             MessageType::Search => {
-                try!(send_request(SEARCH_METHOD, &self.headers, &mut connector, url))
+                send_request(SEARCH_METHOD, &self.headers, connector, dst_sock_addr)
             },
             MessageType::Response => {
                 panic!("Unimplemented")
             }
         }
-        
-        connector.clone_udp().map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>))
     }
 }
 
-/// Construct and send a request on the UdpConnector with the supplied method
-/// and headers.
-fn send_request(method: &str, headers: &Headers, connector: &mut UdpConnector, url: Url)
-    -> SSDPResult<()> {
+/// Accept a type implementing ToSocketAddrs and tries to extract the first address.
+fn addr_from_trait<A: ToSocketAddrs>(addr: A) -> SSDPResult<SocketAddr> {
+    let mut sock_iter = try!(addr.to_socket_addrs().map_err(|e| SSDPError::IoError(e) ));
+    
+    match sock_iter.next() {
+        Some(n) => Ok(n),
+        None    => Err(SSDPError::IoError(IoError::new(ErrorKind::InvalidInput,
+            "Failed To Parse SocketAddr")))
+    }
+}
+
+/// Send a request on the UdpConnector with the supplied method and headers.
+fn send_request(method: &str, headers: &Headers, connector: &mut UdpConnector,
+    dst_addr: SocketAddr) -> SSDPResult<()> {
+    let url = try!(url_from_addr(dst_addr));
+
     let mut request = try!(Request::with_connector(
-        Method::Extension(NOTIFY_METHOD.to_owned()),
+        Method::Extension(method.to_owned()),
         url,
         connector
     ).map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>)));
-    
-    copy_headers(&headers, &mut request.headers_mut());
-    
+
+    copy_headers(&headers, request.headers_mut());
+    overwrite_host(request.headers_mut(), dst_addr);
+
     // Send Will Always Fail As Per The UdpConnector So Ignore That Result
-    try!(request.start().map_err(|e| 
-        SSDPError::Other(Box::new(e) as Box<Error>)
-    )).send();
-    
+    try!(request.start().map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>) )).send();
+
     Ok(())
 }
 
-/// Accepts a socket address and converts it to a Url with a default base
-/// of "udp://".
-fn url_from_addr<A: ToSocketAddrs>(addr: A) -> Result<Url, Box<Error>> {
-    let mut sock_iter = try!(addr.to_socket_addrs());
+/// Overwrite the Host field on the given headers with the address supplied.
+fn overwrite_host(dst_headers: &mut Headers, host_addr: SocketAddr) {
+    let hostname = host_addr.ip().to_string();
     
-    let sock_addr = match sock_iter.next() {
-        Some(n) => n,
-        None    => return Err(Box::new(MsgError::new("Invalid SocketAddr")) as Box<Error>)
-    };
-    
-    let str_url = BASE_UNICAST_URL.chars()
-        .chain(sock_addr.to_string()[..].chars())
-        .collect::<String>();
-    
-    Url::parse(&str_url[..]).map_err(|e| Box::new(e) as Box<Error>)
+    dst_headers.set(Host{ hostname: hostname, port: Some(host_addr.port()) });
 }
 
-/// Copy the headers from the source header struct to the destination header struct.
+/// Convert the given address to a Url with a base of "udp://".
+fn url_from_addr(addr: SocketAddr) -> SSDPResult<Url> {
+    let str_url = BASE_UNICAST_URL.chars()
+        .chain(addr.to_string()[..].chars())
+        .collect::<String>();
+    
+    Url::parse(&str_url[..]).map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>) )
+}
+
+/// Copy the headers from the source header to the destination header.
 fn copy_headers(src_headers: &Headers, dst_headers: &mut Headers) {
     // Not the best solution since we are doing a lot of string
     // allocations for no benefit other than to transfer the headers.
@@ -123,7 +139,8 @@ fn copy_headers(src_headers: &Headers, dst_headers: &mut Headers) {
     // requires a Cow<'static, _> and we only have access to Cow<'a, _>.
     let iter = src_headers.iter();
     for view in iter {
-        dst_headers.set_raw(view.name().to_owned().into_cow(), vec![view.value_string().into_bytes()]);
+        dst_headers.set_raw(view.name().to_owned().into_cow(),
+                            vec![view.value_string().into_bytes()]);
     }
 }
 

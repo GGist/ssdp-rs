@@ -1,4 +1,4 @@
-#![feature(core, collections, into_cow, libc, udp)]
+#![feature(core, collections, ip_addr, into_cow, libc, udp)]
 
 extern crate hyper;
 extern crate libc;

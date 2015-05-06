@@ -7,37 +7,40 @@ use time::{Duration};
 
 use {SSDPResult, SSDPError, MsgError};
 use header::{HeaderRef, HeaderMut, MX};
-use message::{SSDPMessage, MessageType};
+use message::{self, SSDPMessage, MessageType};
+use net::connector::{UdpConnector};
 use receiver::{SSDPReceiver, FromRawSSDP};
 
 /// Standard requires devices to respond within 1 second of receiving message.
 const DEFAULT_UNICAST_TIMEOUT: u8 = 2;
 
 #[derive(Debug, Clone)]
-struct SearchRequest {
+pub struct SearchRequest {
     message: SSDPMessage
 }
 
 impl SearchRequest {
+    /// Construct a new SearchRequest.
     pub fn new() -> SearchRequest {
         SearchRequest{ message: SSDPMessage::new(MessageType::Search) }
     }
     
     /// Send this search request to a single host.
     ///
-    /// While the MX field is not used in unicast requests, the time-out on
-    /// the receiver will be set to the MX field, if present. If the MX field is
-    /// not present, the receiver will default to the standard unicast time-out.
-    pub fn unicast<A: ToSocketAddrs>(&self, local_addr: A, dst_addr: A) 
-        -> SSDPResult<SSDPReceiver<SearchResponse>> {
-        let sock = try!(self.message.send(local_addr, dst_addr));
+    /// While the MX field is not used in unicast requests, if it is present, it
+    /// will be used as the timeout for the returned receiver. If the MX field
+    /// is not present, the default unicast timeout will be used.
+    pub fn unicast<A: ToSocketAddrs>(&mut self, src_addr: A, dst_addr: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
+        let mut connector = try!(UdpConnector::new(src_addr).map_err(|e| SSDPError::IoError(e) ));
+        
+        try!(self.message.send(&mut connector, dst_addr));
         
         let timeout: u8 = match self.get::<MX>() {
             Some(&MX(n)) => n,
             None         => DEFAULT_UNICAST_TIMEOUT
         };
         
-        SSDPReceiver::new(sock, Some(Duration::seconds(timeout as i64)))
+        SSDPReceiver::new(connector.deconstruct(), Some(Duration::seconds(timeout as i64)))
             .map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>) )
     }
     
@@ -81,7 +84,7 @@ impl HeaderMut for SearchRequest {
 }
 
 #[derive(Debug, Clone)]
-struct SearchResponse {
+pub struct SearchResponse {
     message: SSDPMessage
 }
 

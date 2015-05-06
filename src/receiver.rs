@@ -149,7 +149,7 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
 /// This should be run in it's own thread.
 fn udp_timer(time: Duration, kill: Arc<AtomicBool>, sock: UdpSocket, addr: SocketAddr) {
     thread::sleep_ms(time.num_milliseconds() as u32);
-    
+
     syncronize_kill(&*kill, &sock, addr);
 }
 
