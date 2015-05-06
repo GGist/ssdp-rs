@@ -106,19 +106,11 @@ fn send_request(method: &str, headers: &Headers, connector: &mut UdpConnector,
     ).map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>)));
 
     copy_headers(&headers, request.headers_mut());
-    overwrite_host(request.headers_mut(), dst_addr);
 
     // Send Will Always Fail As Per The UdpConnector So Ignore That Result
     try!(request.start().map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>) )).send();
 
     Ok(())
-}
-
-/// Overwrite the Host field on the given headers with the address supplied.
-fn overwrite_host(dst_headers: &mut Headers, host_addr: SocketAddr) {
-    let hostname = host_addr.ip().to_string();
-    
-    dst_headers.set(Host{ hostname: hostname, port: Some(host_addr.port()) });
 }
 
 /// Convert the given address to a Url with a base of "udp://".
