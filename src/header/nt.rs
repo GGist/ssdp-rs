@@ -6,7 +6,7 @@ use {FieldMap};
 
 const NT_HEADER_NAME: &'static str = "NT";
 
-/// Represents an NT header which specifies a Notification Type.
+/// Represents a header used to specify a notification type.
 ///
 /// Any double colons will not be processed as separate FieldMaps.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

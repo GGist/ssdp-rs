@@ -4,8 +4,7 @@ use hyper::header::{HeaderFormat, Header};
 
 const CONFIGID_HEADER_NAME: &'static str = "CONFIGID.UPNP.ORG";
 
-/// Represents a UPnP ConfigID header which is used to denote the configuration
-/// of a root device and it's embedded devices and services.
+/// Represents a header used to denote the configuration of a device's DDD.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ConfigID(pub u32);
 

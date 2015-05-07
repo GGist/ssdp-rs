@@ -1,20 +1,22 @@
 use std::borrow::{Cow};
-use std::error::{Error};
-use std::io::{Error as IoError, Result as IoResult};
 use std::net::{ToSocketAddrs};
 
 use hyper::header::{Header, HeaderFormat};
 use time::{Duration};
 
-use {SSDPResult, MsgError};
+use error::{SSDPResult, MsgError};
 use header::{HeaderRef, HeaderMut, MX};
-use message::{SSDPMessage, MessageType};
-use net::connector::{UdpConnector};
+use message::{self, MessageType};
+use message::message::{SSDPMessage};
 use receiver::{SSDPReceiver, FromRawSSDP};
 
-/// Standard requires devices to respond within 1 second of receiving message.
-const DEFAULT_UNICAST_TIMEOUT: u8 = 2;
+/// Overhead to add to device response times to account for transport time.
+const NETWORK_TIMEOUT_OVERHEAD: u8 = 1;
 
+/// Devices are required to respond within 1 second of receiving unicast message.
+const DEFAULT_UNICAST_TIMEOUT: u8 = 1 + NETWORK_TIMEOUT_OVERHEAD;
+
+/// Search request that can be sent via unicast or multicast to devices on the network.
 #[derive(Debug, Clone)]
 pub struct SearchRequest {
     message: SSDPMessage
@@ -27,33 +29,56 @@ impl SearchRequest {
     }
     
     /// Send this search request to a single host.
-    pub fn unicast<A: ToSocketAddrs>(&mut self, dst: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
-        let mut connectors = try!(all_local_connectors());
+    ///
+    /// Currently this sends the unicast message on all available network
+    /// interfaces. This assumes that the network interfaces are operating
+    /// on either different subnets or different ip address ranges.
+    pub fn unicast<A: ToSocketAddrs>(&mut self, dst_addr: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
+        let mut connectors = try!(message::all_local_connectors(None));
         
         // Send On All Connectors
-        for conn in 
-        try!(self.message.send(&mut connector, dst_addr));
+        for connector in connectors.iter_mut() {
+            try!(self.message.send(connector, &dst_addr));
+        }
         
-        let timeout = opt_unicast_timeout(self.get::<MX>());
+        let connectors = connectors.map_in_place(|conn| conn.deconstruct());
+        let opt_timeout = opt_unicast_timeout(self.get::<MX>());
         
-        connectors.map_in_place(
-        
-        Ok(try!(SSDPReceiver::new(connector.deconstruct(), Some(timeout))))
+        Ok(try!(SSDPReceiver::new(connectors, opt_timeout)))
     }
     
     /// Send this search request to the standard multicast address.
-    pub fn multicast<A: ToSocketAddrs>(&self)
-        -> SSDPReceiver<SearchResponse> {
-        panic!("Unimplemented")
+    pub fn multicast<A: ToSocketAddrs>(&mut self) -> SSDPResult<SSDPReceiver<SearchResponse>> {
+        let mcast_addr = (message::UPNP_MULTICAST_ADDR, message::UPNP_MULTICAST_PORT);
+        let mcast_timeout = try!(multicast_timeout(self.get::<MX>()));
+        let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);
+        
+        let mut connectors = try!(message::all_local_connectors(mcast_ttl));
+        
+        // Send On All Connectors
+        for conn in connectors.iter_mut() {
+            try!(self.message.send(conn, &mcast_addr));
+        }
+        
+        let connectors = connectors.map_in_place(|conn| conn.deconstruct());
+    
+        Ok(try!(SSDPReceiver::new(connectors, Some(mcast_timeout))))
     }
 }
 
-fn all_local_connectors() -> IoResult<
+/// Get the require timeout to use for a multicast search request.
+fn multicast_timeout(mx: Option<&MX>) -> SSDPResult<Duration> {
+    match mx {
+        Some(&MX(n)) => Ok(Duration::seconds((n + NETWORK_TIMEOUT_OVERHEAD) as i64)),
+        None         => try!(Err(MsgError::new("Multicast Searches Require An MX Header")))
+    }
+}
 
+/// Get the default timeout to use for a unicast search request.
 fn opt_unicast_timeout(mx: Option<&MX>) -> Option<Duration> {
     match mx {
-        Some(&MX(n)) => Duration::seconds(n as i64),
-        None         => Duration::seconds(DEFAULT_UNICAST_TIMEOUT as i64)
+        Some(&MX(n)) => Some(Duration::seconds((n + NETWORK_TIMEOUT_OVERHEAD) as i64)),
+        None         => Some(Duration::seconds(DEFAULT_UNICAST_TIMEOUT as i64))
     }
 }
 
@@ -89,18 +114,32 @@ impl HeaderMut for SearchRequest {
     }
 }
 
+/// Search response that can be received or sent via unicast to devices on the network.
 #[derive(Debug, Clone)]
 pub struct SearchResponse {
     message: SSDPMessage
 }
 
 impl SearchResponse {
+    /// Construct a new SearchResponse.
     pub fn new() -> SearchResponse {
         SearchResponse{ message: SSDPMessage::new(MessageType::Response) }
     }
     
-    pub fn unicast<A: ToSocketAddrs>(&self, dst_addr: A) {
-        panic!("Unimplemented")
+    /// Send this search response to a single host.
+    ///
+    /// Currently this sends the unicast message on all available network
+    /// interfaces. This assumes that the network interfaces are operating
+    /// on either different subnets or different ip address ranges.
+    pub fn unicast<A: ToSocketAddrs>(&mut self, dst_addr: A) -> SSDPResult<()> {
+        let mut connectors = try!(message::all_local_connectors(None));
+        
+        // Send On All Connectors
+        for conn in connectors.iter_mut() {
+            try!(self.message.send(conn, &dst_addr));
+        }
+        
+        Ok(())
     }
 }
 

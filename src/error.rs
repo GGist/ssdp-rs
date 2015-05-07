@@ -1,9 +1,9 @@
 use std::convert::{From};
 use std::error::{Error};
-use std::io::Error as IoError;
 use std::fmt::{self, Display, Formatter};
 use std::marker::{Reflect};
 
+/// Result that can return a T or an SSDPError.
 pub type SSDPResult<T> = Result<T, SSDPError>;
 
 /// Enumerates all errors that can occur when dealing with an SSDP message.
@@ -80,6 +80,7 @@ impl<T> From<T> for SSDPError where T: Error + 'static {
     }
 }
 
+/// Basic type implementing the Error trait.
 #[derive(Debug)]
 pub struct MsgError {
     desc: &'static str

@@ -8,7 +8,7 @@ const ALIVE_HEADER:  &'static str = "ssdp:alive";
 const UPDATE_HEADER: &'static str = "ssdp:update";
 const BYEBYE_HEADER: &'static str = "ssdp:byebye";
 
-/// Represents an NTS header which specifies a Notification Sub Type.
+/// Represents a header which specifies a notification sub type.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum NTS {
     /// An entity is announcing itself to the network.

@@ -3,7 +3,7 @@
 //! This module deals with primitives for working with external libraries to write
 //! data to UDP sockets as a stream, and read data from UDP sockets as packets.
 
-use std::io::{Result, Error, ErrorKind};
+use std::io::{self, Error, ErrorKind};
 use std::net::{ToSocketAddrs, UdpSocket, SocketAddr};
 use std::mem;
 
@@ -14,13 +14,13 @@ pub mod packet;
 pub mod sender;
 
 #[cfg(windows)]
-pub type SockT = libc::SOCKET;
+pub type Socket = libc::SOCKET;
 
 #[cfg(not(windows))]
-pub type SockT = libc::c_int;
+pub type Socket = libc::c_int;
 
 /// Bind A UdpSocket To The Given Address With The SO_REUSEADDR Option Set.
-pub fn reuse_socket<A: ToSocketAddrs>(addr: A) -> Result<UdpSocket> {
+pub fn reuse_socket<A: ToSocketAddrs>(addr: A) -> io::Result<UdpSocket> {
     let mut ret;
     
     // Dummy UdpSocket Will Run Socket Initialization Code For Process Since
@@ -35,7 +35,7 @@ pub fn reuse_socket<A: ToSocketAddrs>(addr: A) -> Result<UdpSocket> {
         SocketAddr::V4(..) => libc::AF_INET,
         SocketAddr::V6(..) => libc::AF_INET6
     };
-    let sock: SockT = unsafe{ libc::socket(family, libc::SOCK_DGRAM, 0) };
+    let sock: Socket = unsafe{ libc::socket(family, libc::SOCK_DGRAM, 0) };
     try!(check_sock(sock));
     
     // Set SO_REUSEADDR On Socket
@@ -76,7 +76,7 @@ pub fn reuse_socket<A: ToSocketAddrs>(addr: A) -> Result<UdpSocket> {
 
 /// Check The Return Value Of A Call To libc::socket().
 #[cfg(windows)]
-fn check_sock(sock: SockT) -> Result<()> {
+fn check_sock(sock: Socket) -> io::Result<()> {
     if sock == libc::INVALID_SOCKET {
         // Dont Have Access To Private Function WSAGetLastError()
         Err(Error::new(ErrorKind::Other, "Error With Socket Creation"))
@@ -87,7 +87,7 @@ fn check_sock(sock: SockT) -> Result<()> {
 
 /// Check The Return Value Of A Call To libc::socket().
 #[cfg(not(windows))]
-fn check_sock(sock: SockT) -> Result<()> {
+fn check_sock(sock: Socket) -> io::Result<()> {
     if sock == -1i32 {
         Err(Error::last_os_error())
     } else {

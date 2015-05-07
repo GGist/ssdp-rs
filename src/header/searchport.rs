@@ -7,8 +7,7 @@ const SEARCHPORT_HEADER_NAME: &'static str = "SEARCHPORT.UPNP.ORG";
 pub const SEARCHPORT_MIN_VALUE: u16 = 49152;
 pub const SEARCHPORT_MAX_VALUE: u16 = 65535;
 
-/// Represents a UPnP SearchPort header which is used to denote an alternate
-/// unicast port that a device is using to respond to search requests.
+/// Represents a header used to specify a unicast port to send search requests to.
 ///
 /// If a SearchPort header is not included in a message then the device must
 /// respond to unicast search requests on the standard port of 1900.

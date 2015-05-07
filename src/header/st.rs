@@ -8,7 +8,7 @@ const ST_HEADER_NAME: &'static str = "ST";
 
 const ST_ALL_VALUE: &'static str = "ssdp:all";
 
-/// Represents an ST header which specifies the Search Target.
+/// Represents a header which specifies the search target.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ST {
     All,

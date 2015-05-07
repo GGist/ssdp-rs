@@ -1,6 +1,6 @@
 //! Primitives for non-blocking SSDP message receiving.
 
-use std::io::Result as IoResult;
+use std::io::{self};
 use std::result::{Result};
 use std::thread::{self};
 use std::sync::{Arc};
@@ -46,54 +46,61 @@ pub struct SSDPReceiver<T> {
 }
 
 impl<T> SSDPReceiver<T> where T: FromRawSSDP + Send + 'static {
-    pub fn new(socks: Vec<UdpSocket>, time: Option<Duration>) -> IoResult<SSDPReceiver<T>> {
-        // Produce Two More Copies Of Sockets
-        let (send_socks, time_socks) = (try!(clone_socks(&socks[..])), try!(clone_socks(&socks[..])));
-        
-        // Produce Two Copies Of Socket Addresses
-        let (recv_addrs, time_addrs) = (try!(clone_addrs(&socks[..])), try!(clone_addrs(&socks[..]))); 
-
-        // Create Channel And Shareable Kill Flag
+    /// Construct a receiver that receives bytes from a number of UdpSockets and
+    /// tries to construct an object T from them. If a duration is provided, the
+    /// channel will be shutdown after the specified duration.
+    ///
+    /// Due to implementation details, none of the UdpSockets should be bound to
+    /// the default route, 0.0.0.0, address.
+    pub fn new(socks: Vec<UdpSocket>, time: Option<Duration>) -> io::Result<SSDPReceiver<T>> {
         let (send, recv) = mpsc::channel();
-        let self_kill = Arc::new(AtomicBool::new(false));
         
+        let send_socks = try!(clone_socks(&socks[..]));
+        let recv_addrs = try!(clone_addrs(&socks[..])); 
+        
+        let self_kill = Arc::new(AtomicBool::new(false));
+
         // Spawn Receiver Threads
         spawn_receivers(send_socks, self_kill.clone(), send);
         
         // Spawn Single Kill Timer
-        if let Some(n) = time {
-            let timer_flag = self_kill.clone();
-            thread::spawn(move || {
-                kill_timer(n, timer_flag, time_socks, time_addrs);
-            });
+        let spawn_result = maybe_spawn_timer(time, self_kill.clone(), &socks[..]);
+        
+        // If Timer Failed To Spawn, Kill Our Receivers
+        if let Err(e) = spawn_result {
+            syncronize_kill(&*self_kill, &socks[..], &recv_addrs[..]);
+            
+            return Err(e)
         }
         
         Ok(SSDPReceiver{ recvr: recv, socks: socks, addrs: recv_addrs, kill: self_kill })
     }
 }
 
-fn clone_socks(socks: &[UdpSocket]) -> IoResult<Vec<UdpSocket>> {
+/// Attempt to clone all UdpSockets into a new vector.
+fn clone_socks(socks: &[UdpSocket]) -> io::Result<Vec<UdpSocket>> {
     let mut clone_socks = Vec::with_capacity(socks.len());
     
-    for (sock, dst) in socks.iter().zip(clone_socks.iter_mut()) {
-        *dst = try!(sock.try_clone());
+    for sock in socks.iter() {
+        clone_socks.push(try!(sock.try_clone()));
     }
-    
+
     Ok(clone_socks)
 }
 
-fn clone_addrs(socks: &[UdpSocket]) -> IoResult<Vec<SocketAddr>> {
+/// Attempt to copy all SocketAddrs from the UdpSockets into a new vector.
+fn clone_addrs(socks: &[UdpSocket]) -> io::Result<Vec<SocketAddr>> {
     let mut clone_addrs = Vec::with_capacity(socks.len());
     
-    for (sock, dst) in socks.iter().zip(clone_addrs.iter_mut()) {
-        *dst = try!(sock.local_addr());
+    for sock in socks.iter() {
+        clone_addrs.push(try!(sock.local_addr()));
     }
     
     Ok(clone_addrs)
 }
 
-/// Spawn a number of receiver threads that will receive packets, forward the bytes
-/// on to a constructor, and send successfully constructed objects through the sender.
+/// Spawn a number of receiver threads that will receive packets, forward the
+/// bytes on to T, and send successfully constructed objects through the sender.
 fn spawn_receivers<T>(socks: Vec<UdpSocket>, kill_flag: Arc<AtomicBool>, sender: Sender<T>)
     where T: FromRawSSDP + Send + 'static {
     for sock in socks {
@@ -107,11 +114,32 @@ fn spawn_receivers<T>(socks: Vec<UdpSocket>, kill_flag: Arc<AtomicBool>, sender:
     }
 }
 
+/// Spawn a timer if a duration was passed in and link the timer with the given sockets.
+///
+/// If some of the sockets or socket addresses could not be cloned, an error is returned.
+fn maybe_spawn_timer(time: Option<Duration>, kill: Arc<AtomicBool>, socks: &[UdpSocket]) -> io::Result<()> {
+    match time {
+        Some(n) => {
+            let timer_socks = try!(clone_socks(socks));
+            let timer_addrs = try!(clone_addrs(socks));
+            
+            thread::spawn(move || {
+                kill_timer(n, kill, timer_socks, timer_addrs);
+            });
+        },
+        None => ()
+    };
+    
+    Ok(())
+}
+
 impl<T> SSDPReceiver<T> {
+    /// Non-blocking method that attempts to read a value from the receiver.
     pub fn try_recv(&self) -> Result<T, TryRecvError> {
         self.recvr.try_recv()
     }
     
+    /// Blocking method that reads a value from the receiver until one is available.
     pub fn recv(&self) -> Result<T, RecvError> {
         self.recvr.recv()
     }
@@ -182,8 +210,9 @@ fn kill_timer(time: Duration, kill: Arc<AtomicBool>, socks: Vec<UdpSocket>, addr
     syncronize_kill(&*kill, &socks[..], &addrs[..]);
 }
 
-/// Sets the kill flag and sends a one byte message through the UdpSocket, making
-/// sure that the operations are sequentially consistent (not re-ordered).
+#[allow(unused)]
+/// Sets the kill flag and sends a one byte message through the UdpSockets,
+/// making sure that the operations are sequentially consistent (not re-ordered).
 fn syncronize_kill(kill: &AtomicBool, socks: &[UdpSocket], local_addrs: &[SocketAddr]) {
     kill.store(true, Ordering::SeqCst);
     

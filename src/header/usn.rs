@@ -10,7 +10,7 @@ const USN_HEADER_NAME: &'static str = "USN";
 /// Separator for multiple key/values in header fields.
 const FIELD_PAIR_SEPARATOR: &'static str = "::";
 
-/// Represents a USN header which specifies a Unique Service Name.
+/// Represents a header which specifies a unique service name.
 ///
 /// Field value can hold up to two FieldMaps.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

@@ -16,7 +16,7 @@ const UUID_PREFIX: &'static str = "uuid";
 /// Prefix for the "usn" field key.
 const URN_PREFIX:  &'static str = "urn";
 
-/// Key value pairs embedded within SSDP header fields.
+/// Enumerates key value pairs embedded within SSDP header fields.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FieldMap {
     /// The "upnp" key with its associated value.

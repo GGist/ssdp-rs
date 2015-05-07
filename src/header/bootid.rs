@@ -4,8 +4,7 @@ use hyper::header::{HeaderFormat, Header};
 
 const BOOTID_HEADER_NAME: &'static str = "BOOTID.UPNP.ORG";
 
-/// Represents a UPnP BootID header which is used to denote the boot instance
-/// of a root device.
+/// Represents a header used to denote the boot instance of a root device.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BootID(pub u32);
 

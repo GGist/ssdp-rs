@@ -5,8 +5,7 @@ use hyper::header::{HeaderFormat, Header};
 const MAN_HEADER_NAME:  &'static str = "MAN";
 const MAN_HEADER_VALUE: &'static str = "\"ssdp:discover\"";
 
-/// Represents a Man header which is used to define the scope of the M-SEARCH
-/// HTTP extension.
+/// Represents a header used to specify HTTP extension.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Man;
 

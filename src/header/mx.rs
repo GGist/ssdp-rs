@@ -12,8 +12,8 @@ pub const MX_HEADER_MIN: u8 = 1;
 /// Maximum wait time specified in the UPnP 1.0 standard.
 pub const MX_HEADER_MAX: u8 = 120;
 
-/// Represents an MX header which is used to specify the maximum time that
-/// devices should wait before sending a response.
+/// Represents a header used to specify the maximum time that devices should wait
+/// before sending a response.
 ///
 /// Should only be increased as the number of devices expected to respond
 /// increases, not because of latency or propagation delay. In practice, some
