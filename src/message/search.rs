@@ -26,10 +26,6 @@ impl SearchRequest {
     }
     
     /// Send this search request to a single host.
-    ///
-    /// While the MX field is not used in unicast requests, if it is present, it
-    /// will be used as the timeout for the returned receiver. If the MX field
-    /// is not present, the default unicast timeout will be used.
     pub fn unicast<A: ToSocketAddrs>(&mut self, src_addr: A, dst_addr: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
         let mut connector = try!(UdpConnector::new(src_addr));
         
