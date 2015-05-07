@@ -2,12 +2,12 @@ use std::borrow::{Cow};
 use std::error::{Error};
 use std::net::{ToSocketAddrs};
 
-use hyper::header::{Headers, Header, HeaderFormat};
+use hyper::header::{Header, HeaderFormat};
 use time::{Duration};
 
-use {SSDPResult, SSDPError, MsgError};
+use {SSDPResult, MsgError};
 use header::{HeaderRef, HeaderMut, MX};
-use message::{self, SSDPMessage, MessageType};
+use message::{SSDPMessage, MessageType};
 use net::connector::{UdpConnector};
 use receiver::{SSDPReceiver, FromRawSSDP};
 
@@ -31,21 +31,20 @@ impl SearchRequest {
     /// will be used as the timeout for the returned receiver. If the MX field
     /// is not present, the default unicast timeout will be used.
     pub fn unicast<A: ToSocketAddrs>(&mut self, src_addr: A, dst_addr: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
-        let mut connector = try!(UdpConnector::new(src_addr).map_err(|e| SSDPError::IoError(e) ));
+        let mut connector = try!(UdpConnector::new(src_addr));
         
         try!(self.message.send(&mut connector, dst_addr));
         
-        let timeout: u8 = match self.get::<MX>() {
-            Some(&MX(n)) => n,
-            None         => DEFAULT_UNICAST_TIMEOUT
-        };
+        let timeout = Duration::seconds(self.get::<MX>().map_or(
+            DEFAULT_UNICAST_TIMEOUT as i64,
+            |n| { n.0 as i64 }
+        ));
         
-        SSDPReceiver::new(connector.deconstruct(), Some(Duration::seconds(timeout as i64)))
-            .map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>) )
+        Ok(try!(SSDPReceiver::new(connector.deconstruct(), Some(timeout))))
     }
     
     /// Send this search request to the standard multicast address.
-    pub fn multicast<A: ToSocketAddrs>(&self, local_addr: A)
+    pub fn multicast<A: ToSocketAddrs>(&self)
         -> SSDPReceiver<SearchResponse> {
         panic!("Unimplemented")
     }
@@ -56,10 +55,10 @@ impl FromRawSSDP for SearchRequest {
         let message = try!(SSDPMessage::raw_ssdp(bytes));
         
         if message.message_type() != MessageType::Search {
-            Err(SSDPError::Other(Box::new(MsgError::new(
-                "SSDP Message Received Is Not A SearchRequest"
-            )) as Box<Error>))
-        } else { Ok(SearchRequest{ message: message }) }
+            try!(Err(MsgError::new("SSDP Message Received Is Not A SearchRequest")))
+        } else { 
+            Ok(SearchRequest{ message: message })
+        }
     }
 }
 
@@ -103,10 +102,10 @@ impl FromRawSSDP for SearchResponse {
         let message = try!(SSDPMessage::raw_ssdp(bytes));
         
         if message.message_type() != MessageType::Response {
-            Err(SSDPError::Other(Box::new(MsgError::new(
-                "SSDP Message Received Is Not A SearchResponse"
-            )) as Box<Error>))
-        } else { Ok(SearchResponse{ message: message }) }
+            try!(Err(MsgError::new("SSDP Message Received Is Not A SearchResponse")))
+        } else { 
+            Ok(SearchResponse{ message: message })
+        }
     }
 }
 

@@ -1,38 +1,40 @@
 use std::borrow::{Cow, IntoCow, ToOwned};
-use std::error::{Error};
 use std::io::{ErrorKind};
 use std::io::Error as IoError;
 use std::iter::{Iterator};
-use std::net::{ToSocketAddrs, UdpSocket, SocketAddr};
+use std::net::{ToSocketAddrs, SocketAddr};
 
 use hyper::buffer::{BufReader};
 use hyper::client::request::{Request};
-use hyper::error::{HttpResult};
 use hyper::header::{Headers, Header, HeaderFormat, Host};
 use hyper::http::{self, Incoming, RawStatus};
 use hyper::method::{Method};
+use hyper::net::{NetworkConnector, NetworkStream};
 use hyper::uri::{RequestUri};
 use hyper::version::{HttpVersion};
-use url::{Url, SchemeData};
+use url::{Url};
 
-use {SSDPResult, SSDPError, MsgError};
+use {SSDPResult, SSDPError};
 use header::{HeaderRef, HeaderMut};
-use net::connector::{UdpConnector};
 use receiver::{FromRawSSDP};
 
 pub mod search;
 
+/// Multicast Socket Information
 const UPNP_MULTICAST_ADDR: (u8, u8, u8, u8) = (239, 255, 255, 250);
 const UPNP_MULTICAST_PORT: u16 = 1900;
 
+/// Only Valid SearchResponse Code
 const VALID_RESPONSE_CODE: u16 = 200;
 
-const BASE_UNICAST_URL: &'static str = "http://";
+/// Appended To Destination Socket Addresses For URLs
+const BASE_HOST_URL: &'static str = "http://";
 
+/// Case-Sensitive Method Names
 const NOTIFY_METHOD: &'static str = "NOTIFY";
 const SEARCH_METHOD: &'static str = "M-SEARCH";
 
-/// Enumerates the different types of SSDP messages.
+/// Enumerates different types of SSDP messages.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub enum MessageType {
     /// A notify message.
@@ -43,8 +45,7 @@ pub enum MessageType {
     Response
 }
 
-/// An SSDPMessage represents an SSDP method combined with both SSDP and HTTP
-/// headers.
+/// Represents an SSDP method combined with both SSDP and HTTP headers.
 #[derive(Debug, Clone)]
 pub struct SSDPMessage {
     method:  MessageType,
@@ -64,9 +65,9 @@ impl SSDPMessage {
     
     /// Send this request to the given destination address using the given connector.
     ///
-    /// It is important to note that the Host header field will be overwritten
-    /// with the destination address specified.
-    pub fn send<A: ToSocketAddrs>(&self, connector: &mut UdpConnector, dst_addr: A) -> SSDPResult<()> {
+    /// The host header field will be taken care of by the underlying library.
+    pub fn send<A: ToSocketAddrs, C, S>(&self, connector: &mut C, dst_addr: A) -> SSDPResult<()>
+        where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>> {
         let dst_sock_addr = try!(addr_from_trait(dst_addr));
         
         match self.method {
@@ -85,40 +86,33 @@ impl SSDPMessage {
 
 /// Accept a type implementing ToSocketAddrs and tries to extract the first address.
 fn addr_from_trait<A: ToSocketAddrs>(addr: A) -> SSDPResult<SocketAddr> {
-    let mut sock_iter = try!(addr.to_socket_addrs().map_err(|e| SSDPError::IoError(e) ));
+    let mut sock_iter = try!(addr.to_socket_addrs());
     
     match sock_iter.next() {
         Some(n) => Ok(n),
-        None    => Err(SSDPError::IoError(IoError::new(ErrorKind::InvalidInput,
-            "Failed To Parse SocketAddr")))
+        None    => try!(Err(IoError::new(ErrorKind::InvalidInput, "Failed To Parse SocketAddr")))
     }
 }
 
+#[allow(unused)]
 /// Send a request on the UdpConnector with the supplied method and headers.
-fn send_request(method: &str, headers: &Headers, connector: &mut UdpConnector,
-    dst_addr: SocketAddr) -> SSDPResult<()> {
+fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_addr: SocketAddr)
+    -> SSDPResult<()> where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>> {
     let url = try!(url_from_addr(dst_addr));
 
     let mut request = try!(Request::with_connector(
         Method::Extension(method.to_owned()),
         url,
         connector
-    ).map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>)));
+    ));
 
     copy_headers(&headers, request.headers_mut());
-    overwrite_host(request.headers_mut(), dst_addr);
 
-    // Send Will Always Fail As Per The UdpConnector So Ignore That Result
-    try!(request.start().map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>) )).send();
+    // Send Will Always Fail Within The UdpConnector Which Is Intended So That
+    // Hyper Does Not Block For A Response Since We Are Handling That Ourselves.
+    try!(request.start()).send();
 
     Ok(())
-}
-
-/// Overwrite the Host field on the given headers with the address supplied.
-fn overwrite_host(dst_headers: &mut Headers, host_addr: SocketAddr) {
-    let hostname = host_addr.ip().to_string();
-    
-    dst_headers.set(Host{ hostname: hostname, port: Some(host_addr.port()) });
 }
 
 /// Convert the given address to a Url with a base of "udp://".
@@ -127,7 +121,7 @@ fn url_from_addr(addr: SocketAddr) -> SSDPResult<Url> {
         .chain(addr.to_string()[..].chars())
         .collect::<String>();
     
-    Url::parse(&str_url[..]).map_err(|e| SSDPError::Other(Box::new(e) as Box<Error>) )
+    Ok(try!(Url::parse(&str_url[..])))
 }
 
 /// Copy the headers from the source header to the destination header.
