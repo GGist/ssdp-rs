@@ -117,7 +117,7 @@ fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_ad
 
 /// Convert the given address to a Url with a base of "udp://".
 fn url_from_addr(addr: SocketAddr) -> SSDPResult<Url> {
-    let str_url = BASE_UNICAST_URL.chars()
+    let str_url = BASE_HOST_URL.chars()
         .chain(addr.to_string()[..].chars())
         .collect::<String>();
     

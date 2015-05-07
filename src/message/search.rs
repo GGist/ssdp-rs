@@ -1,5 +1,6 @@
 use std::borrow::{Cow};
 use std::error::{Error};
+use std::io::{Error as IoError, Result as IoResult};
 use std::net::{ToSocketAddrs};
 
 use hyper::header::{Header, HeaderFormat};
@@ -26,15 +27,16 @@ impl SearchRequest {
     }
     
     /// Send this search request to a single host.
-    pub fn unicast<A: ToSocketAddrs>(&mut self, src_addr: A, dst_addr: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
-        let mut connector = try!(UdpConnector::new(src_addr));
+    pub fn unicast<A: ToSocketAddrs>(&mut self, dst: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
+        let mut connectors = try!(all_local_connectors());
         
+        // Send On All Connectors
+        for conn in 
         try!(self.message.send(&mut connector, dst_addr));
         
-        let timeout = Duration::seconds(self.get::<MX>().map_or(
-            DEFAULT_UNICAST_TIMEOUT as i64,
-            |n| { n.0 as i64 }
-        ));
+        let timeout = opt_unicast_timeout(self.get::<MX>());
+        
+        connectors.map_in_place(
         
         Ok(try!(SSDPReceiver::new(connector.deconstruct(), Some(timeout))))
     }
@@ -43,6 +45,15 @@ impl SearchRequest {
     pub fn multicast<A: ToSocketAddrs>(&self)
         -> SSDPReceiver<SearchResponse> {
         panic!("Unimplemented")
+    }
+}
+
+fn all_local_connectors() -> IoResult<
+
+fn opt_unicast_timeout(mx: Option<&MX>) -> Option<Duration> {
+    match mx {
+        Some(&MX(n)) => Duration::seconds(n as i64),
+        None         => Duration::seconds(DEFAULT_UNICAST_TIMEOUT as i64)
     }
 }
 
