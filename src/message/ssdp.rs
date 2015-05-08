@@ -1,22 +1,24 @@
 use std::borrow::{Cow, IntoCow, ToOwned};
-use std::io::{ErrorKind};
-use std::io::Error as IoError;
+use std::io::{Write};
 use std::iter::{Iterator};
 use std::net::{ToSocketAddrs, SocketAddr};
 
 use hyper::{Url};
 use hyper::buffer::{BufReader};
 use hyper::client::request::{Request};
-use hyper::header::{Headers, Header, HeaderFormat};
+use hyper::header::{Headers, Header, HeaderFormat, ContentLength};
 use hyper::http::{self, Incoming, RawStatus};
 use hyper::method::{Method};
 use hyper::net::{NetworkConnector, NetworkStream};
+use hyper::server::response::{Response};
+use hyper::status::{StatusCode};
 use hyper::uri::{RequestUri};
 use hyper::version::{HttpVersion};
 
 use {SSDPResult, SSDPError};
 use header::{HeaderRef, HeaderMut};
 use message::{MessageType};
+use net::connector::{self};
 use receiver::{FromRawSSDP};
 
 /// Only Valid SearchResponse Code
@@ -52,7 +54,7 @@ impl SSDPMessage {
     /// The host header field will be taken care of by the underlying library.
     pub fn send<A: ToSocketAddrs, C, S>(&self, connector: &mut C, dst_addr: A) -> SSDPResult<()>
         where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>> {
-        let dst_sock_addr = try!(addr_from_trait(dst_addr));
+        let dst_sock_addr = try!(connector::addr_from_trait(dst_addr));
         
         match self.method {
             MessageType::Notify => {
@@ -62,24 +64,19 @@ impl SSDPMessage {
                 send_request(SEARCH_METHOD, &self.headers, connector, dst_sock_addr)
             },
             MessageType::Response => {
-                panic!("Unimplemented")
+                let dst_ip_string = dst_sock_addr.ip().to_string();
+                let dst_port = dst_sock_addr.port();
+                
+                let net_stream = try!(connector.connect(&dst_ip_string[..], dst_port, "")).into();
+                
+                send_response(&self.headers, net_stream)
             }
         }
     }
 }
 
-/// Accept a type implementing ToSocketAddrs and tries to extract the first address.
-fn addr_from_trait<A: ToSocketAddrs>(addr: A) -> SSDPResult<SocketAddr> {
-    let mut sock_iter = try!(addr.to_socket_addrs());
-    
-    match sock_iter.next() {
-        Some(n) => Ok(n),
-        None    => try!(Err(IoError::new(ErrorKind::InvalidInput, "Failed To Parse SocketAddr")))
-    }
-}
-
 #[allow(unused)]
-/// Send a request on the UdpConnector with the supplied method and headers.
+/// Send a request using the connector with the supplied method and headers.
 fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_addr: SocketAddr)
     -> SSDPResult<()> where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>> {
     let url = try!(url_from_addr(dst_addr));
@@ -90,13 +87,26 @@ fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_ad
         connector
     ));
 
-    copy_headers(&headers, request.headers_mut());
-
+    copy_headers(headers, request.headers_mut());
+    request.headers_mut().set(ContentLength(0));
+    
     // Send Will Always Fail Within The UdpConnector Which Is Intended So That
     // Hyper Does Not Block For A Response Since We Are Handling That Ourselves.
     try!(request.start()).send();
 
     Ok(())
+}
+
+/// Send an Ok response on the Writer with the supplied headers.
+fn send_response<W>(headers: &Headers, mut dst_writer: W) -> SSDPResult<()>
+    where W: Write {
+    let mut response = Response::new(&mut dst_writer as &mut Write);
+    *response.status_mut() = StatusCode::Ok;
+    
+    copy_headers(headers, response.headers_mut());
+    response.headers_mut().set(ContentLength(0));
+    
+    Ok(try!(try!(response.start()).end()))
 }
 
 /// Convert the given address to a Url with a base of "udp://".

@@ -7,7 +7,7 @@ use time::{Duration};
 use error::{SSDPResult, MsgError};
 use header::{HeaderRef, HeaderMut, MX};
 use message::{self, MessageType};
-use message::message::{SSDPMessage};
+use message::ssdp::{SSDPMessage};
 use receiver::{SSDPReceiver, FromRawSSDP};
 
 /// Overhead to add to device response times to account for transport time.
@@ -48,7 +48,7 @@ impl SearchRequest {
     }
     
     /// Send this search request to the standard multicast address.
-    pub fn multicast<A: ToSocketAddrs>(&mut self) -> SSDPResult<SSDPReceiver<SearchResponse>> {
+    pub fn multicast(&mut self) -> SSDPResult<SSDPReceiver<SearchResponse>> {
         let mcast_addr = (message::UPNP_MULTICAST_ADDR, message::UPNP_MULTICAST_PORT);
         let mcast_timeout = try!(multicast_timeout(self.get::<MX>()));
         let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);

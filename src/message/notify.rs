@@ -7,7 +7,7 @@ use hyper::header::{Header, HeaderFormat};
 use error::{SSDPResult, MsgError};
 use header::{HeaderRef, HeaderMut};
 use message::{self, MessageType};
-use message::message::{SSDPMessage};
+use message::ssdp::{SSDPMessage};
 use net::{self};
 use receiver::{SSDPReceiver, FromRawSSDP};
 

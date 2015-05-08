@@ -5,9 +5,12 @@ use std::net::{self, SocketAddr, Ipv4Addr};
 
 use net::connector::{UdpConnector};
 
-pub mod message;
-pub mod notify;
-pub mod search;
+mod notify;
+mod search;
+mod ssdp;
+
+pub use message::search::{SearchRequest, SearchResponse};
+pub use message::notify::{NotifyMessage, NotifyListener};
 
 /// Multicast Socket Information
 const UPNP_MULTICAST_ADDR: &'static str = "239.255.255.250";
