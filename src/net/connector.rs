@@ -28,16 +28,6 @@ impl UdpConnector {
     }
 }
 
-/// Accept a type implementing ToSocketAddrs and tries to extract the first address.
-pub fn addr_from_trait<A: ToSocketAddrs>(addr: A) -> io::Result<SocketAddr> {
-    let mut sock_iter = try!(addr.to_socket_addrs());
-    
-    match sock_iter.next() {
-        Some(n) => Ok(n),
-        None    => Err(io::Error::new(ErrorKind::InvalidInput, "Failed To Parse SocketAddr"))
-    }
-}
-
 impl NetworkConnector for UdpConnector {
     type Stream = UdpSender;
     

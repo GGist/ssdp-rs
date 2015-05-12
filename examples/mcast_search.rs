@@ -12,6 +12,6 @@ fn main() {
     
     // Iterate Over Streaming Responses
     for response in request.multicast().unwrap() {
-        println!("{:?}\n\n", i);
+        println!("{:?}\n\n", response);
     }
 }

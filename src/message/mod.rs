@@ -17,7 +17,7 @@ const UPNP_MULTICAST_ADDR: &'static str = "239.255.255.250";
 const UPNP_MULTICAST_PORT: u16          = 1900;
 
 /// Default TTL For Multicast
-const UPNP_MULTICAST_TTL: i32 = 4;
+const UPNP_MULTICAST_TTL: i32 = 2;
 
 /// Enumerates different types of SSDP messages.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
