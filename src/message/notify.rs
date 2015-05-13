@@ -79,7 +79,7 @@ impl NotifyListener {
     pub fn listen() -> SSDPResult<SSDPReceiver<NotifyMessage>> {
         // Generate a list of reused sockets on the standard multicast address.
         let mut reuse_sockets = try!(message::map_local_ipv4(|&addr| {
-            net::reuse_socket((addr, message::UPNP_MULTICAST_PORT))
+            net::bind_reuse((addr, message::UPNP_MULTICAST_PORT))
         }));
         
         let mcast_addr = try!(IpAddr::from_str(message::UPNP_MULTICAST_ADDR)
@@ -87,7 +87,9 @@ impl NotifyListener {
         
         // Subscribe To Multicast On All Of Them
         for sock in reuse_sockets.iter_mut() {
-            try!(sock.join_multicast(&mcast_addr));
+            let iface_addr = try!(sock.local_addr()).ip();
+        
+            try!(net::join_multicast(sock, &iface_addr, &mcast_addr));
         }
         
         Ok(try!(SSDPReceiver::new(reuse_sockets, None)))
