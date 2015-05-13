@@ -165,7 +165,6 @@ impl<T> IntoIterator for SSDPReceiver<T> {
 
 impl<T> Drop for SSDPReceiver<T> {
     fn drop(&mut self) {
-        println!("DROPPING");
         syncronize_kill(&*self.kill, &self.socks[..], &self.addrs[..]);
     }
 }
@@ -186,9 +185,10 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
         
         // Check If We Were Unblocked Intentionally
         if kill.load(Ordering::Acquire) {
-            // With acquire, there is a chance that we could process our 
-            // one byte unblock message, if we add logging in the future 
-            // we have to take that into account.
+            // With acquire, there is a chance that the code below could
+            // be moved up and our unblock message could be processed. This
+            // should not affect execution but keep in mind for logging
+            // purposes.
             return
         }
         

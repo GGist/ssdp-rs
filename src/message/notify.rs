@@ -95,3 +95,40 @@ impl NotifyListener {
         Ok(try!(SSDPReceiver::new(reuse_sockets, None)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{NotifyMessage};
+    use receiver::{FromRawSSDP};
+    
+    #[test]
+    fn positive_notify_message_valid_http() {
+        let raw_message = "NOTIFY * HTTP/1.1\r\nHOST: 192.168.1.1\r\n\r\n";
+        
+        NotifyMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+    }
+    
+    #[test]
+    #[should_panic]
+    fn negative_notify_message_invalid_message_type() {
+        let raw_message = "M-SEARCH * HTTP/1.1\r\nHOST: 192.168.1.1\r\n\r\n";
+        
+        NotifyMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+    }
+    
+    #[test]
+    #[should_panic]
+    fn negative_notify_message_invalid_http_version() {
+        let raw_message = "NOTIFY * HTTP/2.0\r\nHOST: 192.168.1.1\r\n\r\n";
+        
+        NotifyMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+    }
+    
+    #[test]
+    #[should_panic]
+    fn negative_notify_message_invalid_http_11() {
+        let raw_message = "NOTIFY * HTTP/1.1\r\n\r\n";
+        
+        NotifyMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+    }
+}
