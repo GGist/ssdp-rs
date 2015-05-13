@@ -39,8 +39,6 @@ pub enum SSDPError {
     Other(Box<Error>)
 }
 
-impl Reflect for SSDPError { }
-
 impl Display for SSDPError {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
         match *self {
