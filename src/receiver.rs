@@ -165,6 +165,7 @@ impl<T> IntoIterator for SSDPReceiver<T> {
 
 impl<T> Drop for SSDPReceiver<T> {
     fn drop(&mut self) {
+        println!("DROPPING");
         syncronize_kill(&*self.kill, &self.socks[..], &self.addrs[..]);
     }
 }
@@ -178,8 +179,8 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
     // TODO: Add logging to this function. Maybe forward sender IP Address along
     // so that we can do some checks when we parse the http.
     loop {
-        let msg_bytes = match recv.recv_pckt() {
-            Ok((bytes, _)) => bytes,
+        let (msg_bytes, addr) = match recv.recv_pckt() {
+            Ok((bytes, addr)) => (bytes, addr),
             Err(_)       => { continue; }
         };
         
@@ -193,7 +194,10 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
         
         // Unwrap Will Cause A Panic If Receiver Hung Up Which Is Desired
         match T::raw_ssdp(&msg_bytes[..]) {
-            Ok(n)  => send.send(n).unwrap(),
+            Ok(n)  => {
+                println!("Received From: {}", addr);
+                send.send(n).unwrap()
+            },
             Err(_) => { continue; }
         };
     }

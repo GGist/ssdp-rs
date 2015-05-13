@@ -1,9 +1,10 @@
-use std::io::{self, ErrorKind};
-use std::net::{UdpSocket, ToSocketAddrs, SocketAddr};
+use std::io::{self};
+use std::net::{UdpSocket, ToSocketAddrs};
 
 use hyper::error::{self};
 use hyper::net::{NetworkConnector};
 
+use net::{self};
 use net::sender::{UdpSender};
 
 /// A UdpConnector allows Hyper to obtain NetworkStream objects over UdpSockets 
@@ -33,7 +34,7 @@ impl NetworkConnector for UdpConnector {
     
     fn connect(&mut self, host: &str, port: u16, _: &str) -> error::Result<<Self as NetworkConnector>::Stream> {
         let udp_sock = try!(self.0.try_clone());
-        let sock_addr = try!(addr_from_trait((host, port)));
+        let sock_addr = try!(net::addr_from_trait((host, port)));
         
         Ok(UdpSender::new(udp_sock, sock_addr))
     }

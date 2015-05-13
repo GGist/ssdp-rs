@@ -18,7 +18,7 @@ use hyper::version::{HttpVersion};
 use {SSDPResult, SSDPError};
 use header::{HeaderRef, HeaderMut};
 use message::{MessageType};
-use net::connector::{self};
+use net::{self};
 use receiver::{FromRawSSDP};
 
 /// Only Valid SearchResponse Code
@@ -54,7 +54,7 @@ impl SSDPMessage {
     /// The host header field will be taken care of by the underlying library.
     pub fn send<A: ToSocketAddrs, C, S>(&self, connector: &mut C, dst_addr: A) -> SSDPResult<()>
         where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>> {
-        let dst_sock_addr = try!(connector::addr_from_trait(dst_addr));
+        let dst_sock_addr = try!(net::addr_from_trait(dst_addr));
         
         match self.method {
             MessageType::Notify => {
