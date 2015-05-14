@@ -6,7 +6,7 @@ use std::net::{ToSocketAddrs, SocketAddr};
 use hyper::{Url};
 use hyper::buffer::{BufReader};
 use hyper::client::request::{Request};
-use hyper::header::{Headers, Header, HeaderFormat, ContentLength};
+use hyper::header::{Headers, Header, HeaderFormat, ContentLength, Host};
 use hyper::http::{self, Incoming, RawStatus};
 use hyper::method::{Method};
 use hyper::net::{NetworkConnector, NetworkStream};
@@ -75,7 +75,6 @@ impl SSDPMessage {
     }
 }
 
-#[allow(unused)]
 /// Send a request using the connector with the supplied method and headers.
 fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_addr: SocketAddr)
     -> SSDPResult<()> where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>> {
@@ -100,13 +99,18 @@ fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_ad
 /// Send an Ok response on the Writer with the supplied headers.
 fn send_response<W>(headers: &Headers, mut dst_writer: W) -> SSDPResult<()>
     where W: Write {
-    let mut response = Response::new(&mut dst_writer as &mut Write);
+    let mut temp_headers = Headers::new();
+    
+    copy_headers(headers, &mut temp_headers);
+    temp_headers.set(ContentLength(0));
+    
+    let mut response = Response::new(&mut dst_writer as &mut Write, &mut temp_headers);
     *response.status_mut() = StatusCode::Ok;
     
-    copy_headers(headers, response.headers_mut());
-    response.headers_mut().set(ContentLength(0));
+    // Have to make sure response is destroyed here for lifetime issues with temp_headers
+    try!(try!(response.start()).end());
     
-    Ok(try!(try!(response.start()).end()))
+    Ok(())
 }
 
 /// Convert the given address to a Url with a base of "udp://".
@@ -171,6 +175,7 @@ fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSD
     let headers = parts.headers;
 
     try!(validate_http_version(parts.version));
+    try!(validate_http_host(&headers));
     
     match parts.subject {
         (Method::Extension(n), RequestUri::Star) => {
@@ -205,9 +210,130 @@ fn validate_http_version(version: HttpVersion) -> SSDPResult<()> {
     } else { Ok(()) }
 }
 
+/// Validate that the Host header is present.
+fn validate_http_host<T>(headers: T) -> SSDPResult<()>
+    where T: HeaderRef {
+    // Shouldn't have to do this but hyper doesn't make sure that HTTP/1.1
+    // messages contain Host headers so we will assure conformance ourselves.
+    if headers.get::<Host>().is_none() {
+        Err(SSDPError::MissingHeader(Host::header_name()))
+    } else { Ok(()) }
+}
+
 /// Validate the response code for an SSDP message.
 fn validate_response_code(code: u16) -> SSDPResult<()> {
     if code != VALID_RESPONSE_CODE {
         Err(SSDPError::ResponseCode(code))
     } else { Ok(()) }
+}
+/*
+#[cfg(test)]
+mod mocks {
+    use std::io::{self, Read, Write, ErrorKind};
+    use std::marker::{Reflect};
+    use std::net::{SocketAddr};
+
+    use hyper::error::{self};
+    use hyper::net::{NetworkConnector, NetworkStream, ContextVerifier};
+    
+    pub struct MockConnector<'a> {
+        stream: &'a mut Vec<u8>
+    }
+    
+    impl<'a> NetworkConnector for MockConnector<'a> {
+        type Stream = Box<MockStream<'a>;
+    
+        fn connect(&self, _: &str, _: u16, _: &str) -> error::Result<Self::Stream> {
+            Ok(MockStream{ write_buffer: self.stream })
+        }
+        
+        fn set_ssl_verifier(&mut self, _: ContextVerifier) { }
+    }
+    
+    pub struct MockStream {
+        pub write_buffer: Vec<u8>
+    }
+    
+    impl NetworkStream for MockStream {
+        fn peer_addr(&mut self) -> io::Result<SocketAddr> {
+            Err(io::Error::new(ErrorKind::AddrNotAvailable, ""))
+        }
+    }
+    
+    unsafe impl Send for MockStream { }
+    
+    impl Reflect for MockStream { }
+    
+    impl Read for MockStream {
+        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+            Err(io::Error::new(ErrorKind::ConnectionAborted, ""))
+        }
+    }
+    
+    impl Write for MockStream {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.write_buffer.push_all(buf);
+            
+            Ok(buf.len())
+        }
+        
+        fn flush(&mut self) -> io::Result<()> { Ok(()) }
+    }
+}*/
+
+#[cfg(test)]
+mod tests {
+    
+    
+    mod send {
+        //use super::super::mocks::{MockConnector, MockStream};
+        use super::super::{SSDPMessage};
+        use header::{HeaderRef};
+        use message::{MessageType};
+        
+        #[test]
+        fn positive_send() {
+            let message = SSDPMessage::new(MessageType::Search);
+            
+            
+            //message.send(
+        }
+    }
+    
+    mod parse {
+        use super::super::{SSDPMessage};
+        use header::{HeaderRef};
+        use receiver::{FromRawSSDP};
+    
+        #[test]
+        fn positive_valid_http() {
+            let raw_message = "NOTIFY * HTTP/1.1\r\nHOST: 192.168.1.1\r\n\r\n";
+            
+            SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+        }
+        
+        #[test]
+        fn positive_intact_header() {
+            let raw_message = "NOTIFY * HTTP/1.1\r\nHOST: 192.168.1.1\r\n\r\n";
+            let message = SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+            
+            assert_eq!(&message.get_raw("Host").unwrap()[0][..], &b"192.168.1.1"[..]);
+        }
+        
+        #[test]
+        #[should_panic]
+        fn negative_http_version() {
+            let raw_message = "NOTIFY * HTTP/2.0\r\nHOST: 192.168.1.1\r\n\r\n";
+            
+            SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+        }
+        
+        #[test]
+        #[should_panic]
+        fn negative_no_host() {
+            let raw_message = "NOTIFY * HTTP/1.1\r\n\r\n";
+            
+            SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+        }
+    }
 }

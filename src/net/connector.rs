@@ -2,7 +2,7 @@ use std::io::{self};
 use std::net::{UdpSocket, ToSocketAddrs};
 
 use hyper::error::{self};
-use hyper::net::{NetworkConnector};
+use hyper::net::{NetworkConnector, ContextVerifier};
 
 use net::{self};
 use net::sender::{UdpSender};
@@ -32,10 +32,12 @@ impl UdpConnector {
 impl NetworkConnector for UdpConnector {
     type Stream = UdpSender;
     
-    fn connect(&mut self, host: &str, port: u16, _: &str) -> error::Result<<Self as NetworkConnector>::Stream> {
+    fn connect(&self, host: &str, port: u16, _: &str) -> error::Result<<Self as NetworkConnector>::Stream> {
         let udp_sock = try!(self.0.try_clone());
         let sock_addr = try!(net::addr_from_trait((host, port)));
         
         Ok(UdpSender::new(udp_sock, sock_addr))
     }
+    
+    fn set_ssl_verifier(&mut self, _: ContextVerifier) { () }
 }

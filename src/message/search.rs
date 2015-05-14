@@ -149,7 +149,7 @@ impl FromRawSSDP for SearchResponse {
         
         if message.message_type() != MessageType::Response {
             try!(Err(MsgError::new("SSDP Message Received Is Not A SearchResponse")))
-        } else { 
+        } else {
             Ok(SearchResponse{ message: message })
         }
     }
@@ -172,5 +172,31 @@ impl HeaderMut for SearchResponse {
     
     fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> {
         self.message.set_raw(name, value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use header::{MX};
+    
+    #[test]
+    fn positive_multicast_timeout() {
+        super::multicast_timeout(Some(&MX(5))).unwrap();
+    }
+    
+    #[test]
+    fn positive_some_opt_multicast_timeout() {
+        super::opt_unicast_timeout(Some(&MX(5))).unwrap();
+    }
+    
+    #[test]
+    fn positive_none_opt_multicast_timeout() {
+        super::opt_unicast_timeout(None).unwrap();
+    }
+    
+    #[test]
+    #[should_panic]
+    fn negative_multicast_timeout() {
+        super::multicast_timeout(None).unwrap();
     }
 }
