@@ -1,0 +1,19 @@
+language: rust
+env:
+  global:
+    - secure: lRppd04O5MP7BfeFks6MMqpFckXcC1EB5RC2hDmwGLbtw1uiQWlidEutEidDNuJK2BMimRcsbX5eqcbw3cyzQX1lDd5JAUF55E/HF4Pad2s1nvuzqoA3tPhK+PsPgCKao9cWUgEAtx+hgVLG5MZk8Z6k4vsYPk3Fyt7g1fAjeBY=
+script:
+    - cargo build
+    - cargo test
+    - cargo doc --no-deps
+after_success:
+    - git config --global user.email "travis@travis-ci.org"
+    - git config --global user.name "travis-ci"
+    - git clone --quiet --branch=gh-pages https://${GH_TOKEN}@github.com/GGist/ssdp-rs gh-pages > /dev/null
+    - cd gh-pages
+    - mv ./index.html ../target/doc
+    - rm -rf ./*
+    - cp -rf ../target/doc/* .
+    - git add -A
+    - git commit -m "Latest rustdoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
+    - git push -fq origin gh-pages > /dev/null
