@@ -2,6 +2,9 @@ language: rust
 env:
   global:
     - secure: lRppd04O5MP7BfeFks6MMqpFckXcC1EB5RC2hDmwGLbtw1uiQWlidEutEidDNuJK2BMimRcsbX5eqcbw3cyzQX1lDd5JAUF55E/HF4Pad2s1nvuzqoA3tPhK+PsPgCKao9cWUgEAtx+hgVLG5MZk8Z6k4vsYPk3Fyt7g1fAjeBY=
+branches:
+    only:
+        - master
 script:
     - cargo build
     - cargo test

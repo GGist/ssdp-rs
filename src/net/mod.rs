@@ -63,7 +63,7 @@ pub fn join_multicast(sock: &UdpSocket, iface_addr: &IpAddr, mcast_addr: &IpAddr
         _ => return Err(io::Error::new(ErrorKind::InvalidInput,
                  "Multicast And Interface Addresses Are Not The Same Version"))
     };
-    let socket = unsafe{ mem::transmute_copy::<UdpSocket, u32>(sock) };
+    let socket = unsafe{ mem::transmute_copy::<UdpSocket, Socket>(sock) };
     
     set_membership_ipv4(socket, iface_ip, mcast_ip, libc::IP_ADD_MEMBERSHIP)
 }
@@ -82,7 +82,7 @@ pub fn leave_multicast(sock: &UdpSocket, iface_addr: &IpAddr, mcast_addr: &IpAdd
         _ => return Err(io::Error::new(ErrorKind::InvalidInput,
                  "Multicast And Interface Addresses Are Not The Same Version"))
     };
-    let socket = unsafe{ mem::transmute_copy::<UdpSocket, u32>(sock) };
+    let socket = unsafe{ mem::transmute_copy::<UdpSocket, Socket>(sock) };
     
     set_membership_ipv4(socket, iface_ip, mcast_ip, libc::IP_DROP_MEMBERSHIP)
 }
