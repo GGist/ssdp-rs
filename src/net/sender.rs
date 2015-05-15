@@ -1,4 +1,4 @@
-use std::io::{Error, ErrorKind, Read, Write, Result};
+use std::io::{self, ErrorKind, Read, Write};
 use std::net::{UdpSocket, SocketAddr};
 
 use hyper::net::{NetworkStream};
@@ -23,7 +23,7 @@ impl UdpSender {
 }
 
 impl NetworkStream for UdpSender {
-    fn peer_addr(&mut self) -> Result<SocketAddr> {
+    fn peer_addr(&mut self) -> io::Result<SocketAddr> {
         Ok(self.dst)
     }
 }
@@ -31,25 +31,28 @@ impl NetworkStream for UdpSender {
 unsafe impl Send for UdpSender { }
 
 impl Read for UdpSender {
-    fn read(&mut self, _: &mut [u8]) -> Result<usize> {
+    fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
         // Simulate Some Network Error So Our Process Doesnt Hang
-        Err(Error::new(ErrorKind::ConnectionAborted, "UdpSender Can Not Be Read From"))
+        Err(io::Error::new(ErrorKind::ConnectionAborted, "UdpSender Can Not Be Read From"))
     }
 }
 
 impl Write for UdpSender {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        // Hyper will generate a request with a /, we need to intercept that.
         let mut buffer = vec![0u8; buf.len()];
+        
         let mut found = false;
-        for (index, &item) in buf.iter().enumerate() {
-            if item == '/' as u8 && !found {
+        for (src, dst) in buf.iter().zip(buffer.iter_mut()) {
+            if *src == b'/' && !found && buf[0] != b'H' {
+                *dst = b'*';
                 found = true;
-                buffer[index] = '*' as u8;
             } else {
-                buffer[index] = item;
+                *dst = *src;
             }
         }
         
+        // Change this to a log
         for &i in buffer.iter() {
             print!("{}", i as char);
         }
@@ -58,7 +61,7 @@ impl Write for UdpSender {
         self.udp.send_to(&buffer[..], self.dst)
     }
     
-    fn flush(&mut self) -> Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 }

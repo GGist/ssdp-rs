@@ -226,32 +226,44 @@ fn validate_response_code(code: u16) -> SSDPResult<()> {
         Err(SSDPError::ResponseCode(code))
     } else { Ok(()) }
 }
-/*
+
 #[cfg(test)]
 mod mocks {
+    use std::cell::{RefCell};
     use std::io::{self, Read, Write, ErrorKind};
     use std::marker::{Reflect};
     use std::net::{SocketAddr};
+    use std::sync::mpsc::{self, Sender, Receiver};
 
     use hyper::error::{self};
     use hyper::net::{NetworkConnector, NetworkStream, ContextVerifier};
     
-    pub struct MockConnector<'a> {
-        stream: &'a mut Vec<u8>
+    pub struct MockConnector {
+        pub receivers: RefCell<Vec<Receiver<Vec<u8>>>>
     }
     
-    impl<'a> NetworkConnector for MockConnector<'a> {
-        type Stream = Box<MockStream<'a>;
+    impl MockConnector {
+        pub fn new() -> MockConnector {
+            MockConnector{ receivers: RefCell::new(Vec::new()) }
+        }
+    }
+    
+    impl NetworkConnector for MockConnector {
+        type Stream = MockStream;
     
         fn connect(&self, _: &str, _: u16, _: &str) -> error::Result<Self::Stream> {
-            Ok(MockStream{ write_buffer: self.stream })
+            let (send, recv) = mpsc::channel();
+            
+            self.receivers.borrow_mut().push(recv);
+            
+            Ok(MockStream{ sender: send })
         }
         
         fn set_ssl_verifier(&mut self, _: ContextVerifier) { }
     }
     
     pub struct MockStream {
-        pub write_buffer: Vec<u8>
+        sender: Sender<Vec<u8>>
     }
     
     impl NetworkStream for MockStream {
@@ -272,31 +284,103 @@ mod mocks {
     
     impl Write for MockStream {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.write_buffer.push_all(buf);
+            // Hyper will generate a request with a /, we need to intercept that.
+            let mut buffer = vec![0u8; buf.len()];
+            
+            let mut found = false;
+            for (src, dst) in buf.iter().zip(buffer.iter_mut()) {
+                if *src == b'/' && !found && buf[0] != b'H' {
+                    *dst = b'*';
+                    found = true;
+                } else {
+                    *dst = *src;
+                }
+            }
+            
+            self.sender.send(buffer).unwrap();
             
             Ok(buf.len())
         }
         
         fn flush(&mut self) -> io::Result<()> { Ok(()) }
     }
-}*/
+}
 
 #[cfg(test)]
 mod tests {
-    
-    
     mod send {
-        //use super::super::mocks::{MockConnector, MockStream};
+        use std::sync::mpsc::{Receiver};
+    
+        use super::super::mocks::{MockConnector};
         use super::super::{SSDPMessage};
-        use header::{HeaderRef};
         use message::{MessageType};
         
+        fn join_buffers(recv_list: &[Receiver<Vec<u8>>]) -> Vec<u8> {
+            let mut buffer = Vec::new();
+        
+            for recv in recv_list {
+                for recv_buf in recv {
+                    buffer.push_all(&recv_buf[..])
+                }
+            }
+            
+            buffer
+        }
+        
         #[test]
-        fn positive_send() {
+        fn positive_search_method_line() {
             let message = SSDPMessage::new(MessageType::Search);
+            let mut connector = MockConnector::new();
             
+            message.send(&mut connector, ("127.0.0.1", 0)).unwrap();
             
-            //message.send(
+            let sent_message = String::from_utf8(
+                join_buffers(&*connector.receivers.borrow())
+            ).unwrap();
+            
+            assert_eq!(&sent_message[..19], "M-SEARCH * HTTP/1.1");
+        }
+        
+        #[test]
+        fn positive_notify_method_line() {
+            let message = SSDPMessage::new(MessageType::Notify);
+            let mut connector = MockConnector::new();
+            
+            message.send(&mut connector, ("127.0.0.1", 0)).unwrap();
+            
+            let sent_message = String::from_utf8(
+                join_buffers(&*connector.receivers.borrow())
+            ).unwrap();
+            
+            assert_eq!(&sent_message[..17], "NOTIFY * HTTP/1.1");
+        }
+        
+        #[test]
+        fn positive_response_method_line() {
+            let message = SSDPMessage::new(MessageType::Response);
+            let mut connector = MockConnector::new();
+            
+            message.send(&mut connector, ("127.0.0.1", 0)).unwrap();
+            
+            let sent_message = String::from_utf8(
+                join_buffers(&*connector.receivers.borrow())
+            ).unwrap();
+            
+            assert_eq!(&sent_message[..15], "HTTP/1.1 200 OK");
+        }
+        
+        #[test]
+        fn positive_host_header() {
+            let message = SSDPMessage::new(MessageType::Search);
+            let mut connector = MockConnector::new();
+            
+            message.send(&mut connector, ("127.0.0.1", 0)).unwrap();
+            
+            let sent_message = String::from_utf8(
+                join_buffers(&*connector.receivers.borrow())
+            ).unwrap();
+            
+            assert!(sent_message.contains("Host: 127.0.0.1:0"));
         }
     }
     
@@ -332,6 +416,14 @@ mod tests {
         #[should_panic]
         fn negative_no_host() {
             let raw_message = "NOTIFY * HTTP/1.1\r\n\r\n";
+            
+            SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+        }
+        
+        #[test]
+        #[should_panic]
+        fn negative_path_included() {
+            let raw_message = "NOTIFY / HTTP/1.1\r\n\r\n";
             
             SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
         }
