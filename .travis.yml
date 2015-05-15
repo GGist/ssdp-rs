@@ -1,7 +1,7 @@
 language: rust
 env:
   global:
-    - secure: lRppd04O5MP7BfeFks6MMqpFckXcC1EB5RC2hDmwGLbtw1uiQWlidEutEidDNuJK2BMimRcsbX5eqcbw3cyzQX1lDd5JAUF55E/HF4Pad2s1nvuzqoA3tPhK+PsPgCKao9cWUgEAtx+hgVLG5MZk8Z6k4vsYPk3Fyt7g1fAjeBY=
+    - secure: rnj7kIfuey1mFuuSak7OjA3DgpPi9Gp8lmqfMNTYHsyHuhtweo1xEJQHFTRd+Cd7a8SIa+OFqYUqPD+cEp8qqqgsTzlZzDZDb9LpcUdsruUHMI1t9e6jTkaaeWAO356YmRe5NwAHRn7M2BUd9A26WxcXG7nyTUoBPjyOa0+bSDE=
 branches:
     only:
         - master
