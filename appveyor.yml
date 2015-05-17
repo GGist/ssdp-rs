@@ -1,21 +1,26 @@
 branches:
   only:
     - master
+
 os:
   - MinGW
+  
 install:
-  - SET PATH=%PATH%;C:\MinGW\mingw32\bin
   - ps: Start-FileDownload 'https://static.rust-lang.org/dist/rust-nightly-i686-pc-windows-gnu.exe'
   - ps: Start-FileDownload 'http://slproweb.com/download/Win32OpenSSL-1_0_2a.exe'
+  - rust-nightly-i686-pc-windows-gnu.exe /VERYSILENT /NORESTART /DIR="C:\Rust"
   - Win32OpenSSL-1_0_2a.exe /VERYSILENT /NORESTART /DIR="C:\OpenSSL-Win32" /SUPPRESSMSGBOXES
-  - SET OPENSSL_INCLUDE_DIR=%OPENSSL_INCLUDE_DIR%;C:\OpenSSL-Win32\include
-  - SET OPENSSL_LIB_DIR=%OPENSSL_LIB_DIR%;C:\OpenSSL-Win32\bin
+  - SET PATH=%PATH%;C:\MinGW\bin
+  - SET PATH=%PATH%;C:\Rust\bin
+  - SET OPENSSL_INCLUDE_DIR=C:\OpenSSL-Win32\include
+  - SET OPENSSL_LIB_DIR=C:\OpenSSL-Win32\bin
   - CP C:\OpenSSL-Win32\bin\ssleay32.dll C:\OpenSSL-Win32\bin\libssl32.dll
-  - rust-nightly-i686-pc-windows-gnu.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
-  - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin
+  - gcc --version
   - rustc -V
   - cargo -V
+
 build_script:
   - cargo build
+
 test_script:
   - cargo test
