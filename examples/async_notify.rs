@@ -9,29 +9,26 @@ use ssdp::message::{NotifyListener, NotifyMessage};
 
 fn main() {
     thread::spawn(|| {
-        for message in NotifyListener::listen().unwrap() {
-            println!("{:?}\n", message);
+        for (msg, src) in NotifyListener::listen().unwrap() {
+            println!("Received The Following Message From {}:\n{:?}\n", src, msg);
         }
     });
     
     // Make Sure Thread Has Started
     thread::sleep_ms(1000);
     
-    // Send A Test Message
+    // Create A Test Message
     let mut message = NotifyMessage::new();
     
     // Set Some Headers
     message.set(NTS::ByeBye);
     message.set(NT(FieldMap::UPnP(b"rootdevice".to_vec())));
-    message.set(USN(FieldMap::UUID(b"Not A Real UUID...Hello!!!".to_vec()), None));
+    message.set(USN(FieldMap::UUID(b"Hello, This Is Not A UUID!!!".to_vec()), None));
     
     message.multicast().unwrap();
     
-    // Let Thread Print Initial Message
-    thread::sleep_ms(1000);
-    
     // Wait Until User Is Done Listening For Notify Messages
-    println!("Press Enter When You Wish To Exit...");
+    println!("Press Enter When You Wish To Exit...\n");
     let input = io::stdin();
     
     input.bytes().next();

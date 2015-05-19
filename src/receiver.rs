@@ -30,7 +30,7 @@ impl<T> SSDPIter<T> {
 }
 
 impl<T> Iterator for SSDPIter<T> {
-    type Item = T;
+    type Item = (T, SocketAddr);
     
     fn next(&mut self) -> Option<Self::Item> {
         self.recv.recv().ok()
@@ -39,7 +39,7 @@ impl<T> Iterator for SSDPIter<T> {
 
 /// A non-blocking SSDP message receiver.
 pub struct SSDPReceiver<T> {
-    recvr: Receiver<T>,
+    recvr: Receiver<(T, SocketAddr)>,
     socks: Vec<UdpSocket>,
     addrs: Vec<SocketAddr>,
     kill:  Arc<AtomicBool>
@@ -101,7 +101,7 @@ fn clone_addrs(socks: &[UdpSocket]) -> io::Result<Vec<SocketAddr>> {
 
 /// Spawn a number of receiver threads that will receive packets, forward the
 /// bytes on to T, and send successfully constructed objects through the sender.
-fn spawn_receivers<T>(socks: Vec<UdpSocket>, kill_flag: Arc<AtomicBool>, sender: Sender<T>)
+fn spawn_receivers<T>(socks: Vec<UdpSocket>, kill_flag: Arc<AtomicBool>, sender: Sender<(T, SocketAddr)>)
     where T: FromRawSSDP + Send + 'static {
     for sock in socks {
         let pckt_recv = PacketReceiver::new(sock);
@@ -135,19 +135,28 @@ fn maybe_spawn_timer(time: Option<Duration>, kill: Arc<AtomicBool>, socks: &[Udp
 
 impl<T> SSDPReceiver<T> {
     /// Non-blocking method that attempts to read a value from the receiver.
-    pub fn try_recv(&self) -> Result<T, TryRecvError> {
+    pub fn try_recv(&self) -> Result<(T, SocketAddr), TryRecvError> {
         self.recvr.try_recv()
     }
     
     /// Blocking method that reads a value from the receiver until one is available.
-    pub fn recv(&self) -> Result<T, RecvError> {
+    pub fn recv(&self) -> Result<(T, SocketAddr), RecvError> {
         self.recvr.recv()
     }
 }
 
 impl<'a, T> IntoIterator for &'a SSDPReceiver<T> {
-    type Item = T;
-    type IntoIter = Iter<'a, T>;
+    type Item = (T, SocketAddr);
+    type IntoIter = Iter<'a, (T, SocketAddr)>;
+    
+    fn into_iter(self) -> Self::IntoIter {
+        self.recvr.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut SSDPReceiver<T> {
+    type Item = (T, SocketAddr);
+    type IntoIter = Iter<'a, (T, SocketAddr)>;
     
     fn into_iter(self) -> Self::IntoIter {
         self.recvr.iter()
@@ -155,7 +164,7 @@ impl<'a, T> IntoIterator for &'a SSDPReceiver<T> {
 }
 
 impl<T> IntoIterator for SSDPReceiver<T> {
-    type Item = T;
+    type Item = (T, SocketAddr);
     type IntoIter = SSDPIter<T>;
     
     fn into_iter(self) -> Self::IntoIter {
@@ -173,7 +182,7 @@ impl<T> Drop for SSDPReceiver<T> {
 /// supplied channel.
 ///
 /// This should almost always be run in it's own thread.
-fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<T>)
+fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<(T, SocketAddr)>)
     where T: FromRawSSDP + Send {
     // TODO: Add logging to this function. Maybe forward sender IP Address along
     // so that we can do some checks when we parse the http.
@@ -195,8 +204,7 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
         // Unwrap Will Cause A Panic If Receiver Hung Up Which Is Desired
         match T::raw_ssdp(&msg_bytes[..]) {
             Ok(n)  => {
-                println!("Received From: {}", addr);
-                send.send(n).unwrap()
+                send.send((n, addr)).unwrap()
             },
             Err(_) => { continue; }
         };

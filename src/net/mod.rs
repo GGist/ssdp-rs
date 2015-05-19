@@ -68,6 +68,7 @@ pub fn join_multicast(sock: &UdpSocket, iface_addr: &IpAddr, mcast_addr: &IpAddr
     set_membership_ipv4(socket, iface_ip, mcast_ip, libc::IP_ADD_MEMBERSHIP)
 }
 
+#[allow(unused)]
 /// Leave a multicast address on the current UdpSocket.
 pub fn leave_multicast(sock: &UdpSocket, iface_addr: &IpAddr, mcast_addr: &IpAddr)
     -> io::Result<()> {
