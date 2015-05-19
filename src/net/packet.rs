@@ -1,4 +1,4 @@
-use std::io::{Error, ErrorKind, Result};
+use std::io::{self, Error, ErrorKind};
 use std::net::{UdpSocket, SocketAddr};
 
 /// Maximum length for packets received on a PacketReceiver.
@@ -18,7 +18,7 @@ impl PacketReceiver {
     }
     
     /// Receive a packet from the underlying connection.
-    pub fn recv_pckt(&self) -> Result<(Vec<u8>, SocketAddr)> {
+    pub fn recv_pckt(&self) -> io::Result<(Vec<u8>, SocketAddr)> {
         let mut pckt_buf = vec![0u8; MAX_PCKT_LEN];
         
         let (size, addr) = try!(self.0.recv_from(&mut pckt_buf));
