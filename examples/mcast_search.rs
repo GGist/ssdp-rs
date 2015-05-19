@@ -11,7 +11,7 @@ fn main() {
     request.set(Man); request.set(MX(5)); request.set(ST::All);
     
     // Iterate Over Streaming Responses
-    for response in request.multicast().unwrap() {
-        println!("{:?}\n\n", response);
+    for (msg, src) in request.multicast().unwrap() {
+        println!("Received The Following Message From {}:\n{:?}\n\n", src, msg);
     }
 }
