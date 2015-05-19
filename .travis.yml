@@ -29,6 +29,7 @@ after_success:
   - git add -A
   - git commit -m "Latest rustdoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
   - git push -fq origin gh-pages > /dev/null
+  - cd ..
   # Generate And Publish Test Coverage
   - sudo apt-get install libcurl4-openssl-dev libelf-dev libdw-dev
   - wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
