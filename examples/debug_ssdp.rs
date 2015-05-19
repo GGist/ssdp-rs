@@ -3,7 +3,6 @@ extern crate ssdp;
 
 use log::{Log, LogRecord, LogLevelFilter, LogMetadata};
 
-use ssdp::{SSDPReceiver};
 use ssdp::header::{HeaderMut, Man, MX, ST};
 use ssdp::message::{SearchRequest};
 
@@ -25,7 +24,7 @@ fn main() {
     log::set_logger(|max_level| {
         max_level.set(LogLevelFilter::Debug);
         Box::new(SimpleLogger)
-    });
+    }).unwrap();
     
     // Create Our Search Request
     let mut request = SearchRequest::new();

@@ -165,12 +165,12 @@ impl FromRawSSDP for SSDPMessage {
         if let Ok(parts) = http::parse_request(&mut buf_reader) {
             let message_result = message_from_request(parts);
             
-            log_message_result(&message_result);
+            log_message_result(&message_result, bytes);
             message_result
         } else if let Ok(parts) = http::parse_response(&mut buf_reader) {
             let message_result = message_from_response(parts);
             
-            log_message_result(&message_result);
+            log_message_result(&message_result, bytes);
             message_result
         } else {
             debug!("Received Invalid HTTP: {}", String::from_utf8_lossy(bytes));
@@ -181,10 +181,14 @@ impl FromRawSSDP for SSDPMessage {
 }
 
 /// Logs a debug! message based on the value of the SSDPResult.
-fn log_message_result(result: &SSDPResult<SSDPMessage>) {
+fn log_message_result(result: &SSDPResult<SSDPMessage>, message: &[u8]) {
     match *result {
-        Ok(ref n)  => debug!("Received Valid SSDPMessage Type: {:?}", n.message_type()),
-        Err(ref e) => debug!("Received Invalid SSDPMessage Error: {}", e)
+        Ok(_) => {
+            debug!("Received Valid SSDPMessage:\n{}", String::from_utf8_lossy(message))
+        },
+        Err(ref e) => {
+            debug!("Received Invalid SSDPMessage Error: {}", e)
+        }
     }
 }
 
