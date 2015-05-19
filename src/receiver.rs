@@ -37,7 +37,7 @@ impl<T> Iterator for SSDPIter<T> {
     }
 }
 
-/// A non-blocking SSDP message receiver for any message that implements FromRawSSDP.
+/// A non-blocking SSDP message receiver.
 pub struct SSDPReceiver<T> {
     recvr: Receiver<T>,
     socks: Vec<UdpSocket>,

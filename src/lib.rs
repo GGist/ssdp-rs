@@ -22,4 +22,4 @@ pub mod message;
 
 pub use error::{SSDPError, SSDPResult};
 pub use field::{FieldMap};
-
+pub use receiver::{SSDPReceiver};

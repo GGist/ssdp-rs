@@ -11,7 +11,7 @@ use message::ssdp::{SSDPMessage};
 use net::{self};
 use receiver::{SSDPReceiver, FromRawSSDP};
 
-/// Notify message that can be sent via unicast or multicast to devices on the network.
+/// Notify message that can be sent via multicast to devices on the network.
 #[derive(Debug, Clone)]
 pub struct NotifyMessage {
     message: SSDPMessage
@@ -71,7 +71,7 @@ impl HeaderMut for NotifyMessage {
     }
 }
 
-/// Notify message listener that can listen to notify messages sent within the network.
+/// Notify listener that can listen to notify messages sent within the network.
 pub struct NotifyListener;
 
 impl NotifyListener {
