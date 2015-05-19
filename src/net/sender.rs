@@ -51,12 +51,7 @@ impl Write for UdpSender {
                 *dst = *src;
             }
         }
-        
-        // Change this to a log
-        for &i in buffer.iter() {
-            print!("{}", i as char);
-        }
-        print!("\n");
+        debug!("Sent HTTP Request:\n{}", String::from_utf8_lossy(&buffer[..]));
         
         self.udp.send_to(&buffer[..], self.dst)
     }

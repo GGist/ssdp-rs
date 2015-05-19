@@ -1,6 +1,6 @@
 #![feature(core, collections, into_cow, ip_addr, lookup_host, udp)]
 
-//! An asyncronous abstraction for discovering devices and services on a network.
+//! An asynchronous abstraction for discovering devices and services on a network.
 //!
 //! SSDP stands for Simple Service Discovery Protocol and it is a protocol that uses
 //! HTTPMU to distribute messages across a local network for devices and services to
@@ -9,6 +9,7 @@
 
 extern crate hyper;
 extern crate libc;
+#[macro_use]
 extern crate log;
 extern crate time;
 
