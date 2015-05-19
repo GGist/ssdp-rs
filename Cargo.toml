@@ -1,7 +1,19 @@
 [package]
 name = "ssdp"
 version = "0.1.0"
-authors = ["= <amiller4421@gmail.com>"]
+description = "An asynchronous abstraction for discovering devices and services on a network."
+
+authors = ["GGist <amiller4421@gmail.com>"]
+
+documentation = "http://ggist.github.io/ssdp-rs/index.html"
+homepage = "https://github.com/GGist/ssdp-rs"
+repository = "https://github.com/GGist/ssdp-rs"
+
+readme = "README.md"
+
+keywords = ["upnp", "ssdp", "simple", "service", "discovery"]
+
+license = "MIT"
 
 [dependencies]
 hyper = "*"
