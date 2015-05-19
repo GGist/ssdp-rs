@@ -75,6 +75,7 @@ impl SSDPMessage {
     }
 }
 
+#[allow(unused)]
 /// Send a request using the connector with the supplied method and headers.
 fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_addr: SocketAddr)
     -> SSDPResult<()> where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>> {
@@ -91,6 +92,7 @@ fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_ad
     
     // Send Will Always Fail Within The UdpConnector Which Is Intended So That
     // Hyper Does Not Block For A Response Since We Are Handling That Ourselves.
+
     try!(request.start()).send();
 
     Ok(())
