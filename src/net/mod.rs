@@ -194,3 +194,18 @@ fn check_socket(sock: Socket) -> io::Result<()> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    
+    #[test]
+    fn positive_addr_from_trait() {
+        super::addr_from_trait("192.168.0.1:0").unwrap();
+    }
+    
+    #[test]
+    #[should_panic]
+    fn negative_addr_from_trait() {
+        super::addr_from_trait("192.168.0.1").unwrap();
+    }
+}

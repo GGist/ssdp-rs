@@ -85,4 +85,12 @@ mod tests {
         
         SearchPort::parse_header(searchport_header_value).unwrap();
     }
+    
+    #[test]
+    #[should_panic]
+    fn negative_nan() {
+        let searchport_header_value = &[b"49151a"[..].to_vec()];
+        
+        SearchPort::parse_header(searchport_header_value).unwrap();
+    }
 }

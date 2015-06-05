@@ -1,6 +1,5 @@
 use std::borrow::{Cow, IntoCow, ToOwned};
 use std::io::{Write};
-use std::iter::{Iterator};
 use std::net::{ToSocketAddrs, SocketAddr};
 
 use hyper::{Url};

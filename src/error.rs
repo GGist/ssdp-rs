@@ -103,3 +103,24 @@ impl Display for MsgError {
         f.write_str(self.desc)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::error::{Error};
+
+    use super::{MsgError};
+
+    #[test]
+    fn positive_msg_error_display() {
+        let error = MsgError::new("Something Happened");
+        
+        assert_eq!(&error.to_string()[..], "Something Happened");
+    }
+    
+    #[test]
+    fn positive_msg_error_description() {
+        let error = MsgError::new("Something Happened");
+        
+        assert_eq!(error.description(), "Something Happened");
+    }
+}

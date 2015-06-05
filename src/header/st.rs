@@ -94,4 +94,13 @@ mod tests {
             _ => panic!("Failed To Match ST::Target Header To FieldMap::UUID")
         }
     }
+    
+    #[test]
+    #[should_panic]
+    fn negative_multiple_headers() {
+        let st_multiple_headers = &[b"uuid:some_identifier"[..].to_vec(), 
+            b"ssdp:all"[..].to_vec()];
+    
+        ST::parse_header(st_multiple_headers).unwrap();
+    }
 }
