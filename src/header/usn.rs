@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Display, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 use {FieldMap};
@@ -31,20 +32,20 @@ impl Header for USN {
         USN_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return None
+            return Err(Error::Header)
         }
         
         let (first, second) = match partition_pairs(raw[0][..].iter()) {
             Some((n, Some(u))) => (FieldMap::new(&n[..]), FieldMap::new(&u[..])),
             Some((n, None))    => (FieldMap::new(&n[..]), None),
-            None               => return None
+            None               => return Err(Error::Header)
         };
 
         match first {
-            Some(n) => Some(USN(n, second)),
-            None    => None
+            Some(n) => Ok(USN(n, second)),
+            None    => Err(Error::Header)
         }
     }
 }

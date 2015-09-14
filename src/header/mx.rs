@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 use {SSDPResult, SSDPError};
@@ -43,16 +44,16 @@ impl Header for MX {
         MX_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return None
+            return Err(Error::Header)
         }
         
         let cow_string = String::from_utf8_lossy(&raw[0][..]);
     
         match u8::from_str_radix(&cow_string, 10) {
-            Ok(n) if n >= MX_HEADER_MIN && n <= MX_HEADER_MAX => Some(MX(n)),
-            _ => None
+            Ok(n) if n >= MX_HEADER_MIN && n <= MX_HEADER_MAX => Ok(MX(n)),
+            _ => Err(Error::Header)
         }
     }
 }
@@ -76,7 +77,7 @@ mod tests {
         let mx_lower_header = &[b"1"[..].to_vec()];
         
         match MX::parse_header(mx_lower_header) {
-            Some(n) if n == MX(1) => (),
+            Ok(n) if n == MX(1) => (),
             _ => panic!("Failed To Accept 1 As MX Value")
         };
     }
@@ -86,7 +87,7 @@ mod tests {
         let mx_inner_header = &[b"5"[..].to_vec()];
         
         match MX::parse_header(mx_inner_header) {
-            Some(n) if n == MX(5) => (),
+            Ok(n) if n == MX(5) => (),
             _ => panic!("Failed To Accept 5 As MX Value")
         };
     }
@@ -96,7 +97,7 @@ mod tests {
         let mx_upper_header = &[b"120"[..].to_vec()];
         
         match MX::parse_header(mx_upper_header) {
-            Some(n) if n == MX(120) => (),
+            Ok(n) if n == MX(120) => (),
             _ => panic!("Failed To Accept 120 As MX Value")
         };
     }

@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 const MAN_HEADER_NAME:  &'static str = "MAN";
@@ -18,15 +19,15 @@ impl Header for Man {
         MAN_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return None
+            return Err(Error::Header)
         }
         
         let man_bytes = MAN_HEADER_VALUE.as_bytes();
         match &raw[0][..] {
-            n if n == man_bytes => Some(Man),
-            _ => None
+            n if n == man_bytes => Ok(Man),
+            _ => Err(Error::Header)
         }
     }
 }

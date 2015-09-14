@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 const CONFIGID_HEADER_NAME: &'static str = "CONFIGID.UPNP.ORG";
@@ -17,9 +18,9 @@ impl Header for ConfigID {
         CONFIGID_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return None
+            return Err(Error::Header)
         }
         
         let cow_str = String::from_utf8_lossy(&raw[0][..]);
@@ -27,7 +28,7 @@ impl Header for ConfigID {
         // Value needs to be a 31 bit non-negative integer, so convert to i32
         let value = match i32::from_str_radix(&*cow_str, 10) {
             Ok(n) => n,
-            Err(_) => return None
+            Err(_) => return Err(Error::Header)
         };
         
         // UPnP 1.1 spec says higher numbers are reserved for future use by the
@@ -37,9 +38,9 @@ impl Header for ConfigID {
         
         // Check if value is negative, then convert to u32
         if value.is_negative() {
-            None
+            Err(Error::Header)
         } else {
-            Some(ConfigID(value as u32))
+            Ok(ConfigID(value as u32))
         }
     }
 }

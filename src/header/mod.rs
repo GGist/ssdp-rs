@@ -76,7 +76,7 @@ pub trait HeaderMut: Debug {
     fn set<H>(&mut self, value: H) where H: Header + HeaderFormat;
     
     /// Set a header to the given raw bytes.
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>>;
+    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug;
 }
 
 impl<'a, T: ?Sized> HeaderMut for &'a mut T where T: HeaderMut {
@@ -84,7 +84,7 @@ impl<'a, T: ?Sized> HeaderMut for &'a mut T where T: HeaderMut {
         HeaderMut::set(*self, value)
     }
     
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> {
+    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         HeaderMut::set_raw(*self, name, value)
     }
 }
@@ -94,7 +94,7 @@ impl HeaderMut for Headers {
         Headers::set(self, value)
     }
     
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> {
+    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         Headers::set_raw(self, name, value)
     }
 }

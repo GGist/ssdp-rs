@@ -1,4 +1,5 @@
 use std::borrow::{Cow};
+use std::fmt::{Debug};
 use std::net::{ToSocketAddrs};
 
 use hyper::header::{Header, HeaderFormat};
@@ -109,7 +110,7 @@ impl HeaderMut for SearchRequest {
         self.message.set(value)
     }
     
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> {
+    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         self.message.set_raw(name, value)
     }
 }
@@ -170,7 +171,7 @@ impl HeaderMut for SearchResponse {
         self.message.set(value)
     }
     
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> {
+    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         self.message.set_raw(name, value)
     }
 }

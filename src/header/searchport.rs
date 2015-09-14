@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 const SEARCHPORT_HEADER_NAME: &'static str = "SEARCHPORT.UPNP.ORG";
@@ -23,22 +24,22 @@ impl Header for SearchPort {
         SEARCHPORT_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return None
+            return Err(Error::Header)
         }
         
         let cow_str = String::from_utf8_lossy(&raw[0][..]);
         
         let value = match u16::from_str_radix(&*cow_str, 10) {
             Ok(n) => n,
-            Err(_) => return None
+            Err(_) => return Err(Error::Header)
         };
         
         if value <= SEARCHPORT_MAX_VALUE && value >= SEARCHPORT_MIN_VALUE {
-            Some(SearchPort(value))
+            Ok(SearchPort(value))
         } else {
-            None
+            Err(Error::Header)
         }
     }
 }

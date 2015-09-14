@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 const SECURELOCATION_HEADER_NAME: &'static str = "SECURELOCATION.UPNP.ORG";
@@ -19,16 +20,16 @@ impl Header for SecureLocation {
         SECURELOCATION_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 || raw[0].is_empty() {
-            return None
+            return Err(Error::Header)
         }
         
         let owned_bytes = raw[0].clone();
         
         match String::from_utf8(owned_bytes) {
-            Ok(n)  => Some(SecureLocation(n)),
-            Err(_) => None
+            Ok(n)  => Ok(SecureLocation(n)),
+            Err(_) => Err(Error::Header)
         }
     }
 }

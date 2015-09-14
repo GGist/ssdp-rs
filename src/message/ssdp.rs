@@ -1,4 +1,5 @@
 use std::borrow::{Cow, IntoCow, ToOwned};
+use std::fmt::{Debug};
 use std::io::{Write};
 use std::net::{ToSocketAddrs, SocketAddr};
 
@@ -6,7 +7,8 @@ use hyper::{Url};
 use hyper::buffer::{BufReader};
 use hyper::client::request::{Request};
 use hyper::header::{Headers, Header, HeaderFormat, ContentLength, Host};
-use hyper::http::{self, Incoming, RawStatus};
+use hyper::http::{RawStatus};
+use hyper::http::h1::{self, Incoming};
 use hyper::method::{Method};
 use hyper::net::{NetworkConnector, NetworkStream};
 use hyper::server::response::{Response};
@@ -152,7 +154,7 @@ impl HeaderMut for SSDPMessage {
         HeaderMut::set(&mut self.headers, value)
     }
     
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> {
+    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         HeaderMut::set_raw(&mut self.headers, name, value)
     }
 }
@@ -161,12 +163,12 @@ impl FromRawSSDP for SSDPMessage {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<SSDPMessage> {
         let mut buf_reader = BufReader::new(bytes);
         
-        if let Ok(parts) = http::parse_request(&mut buf_reader) {
+        if let Ok(parts) = h1::parse_request(&mut buf_reader) {
             let message_result = message_from_request(parts);
             
             log_message_result(&message_result, bytes);
             message_result
-        } else if let Ok(parts) = http::parse_response(&mut buf_reader) {
+        } else if let Ok(parts) = h1::parse_response(&mut buf_reader) {
             let message_result = message_from_response(parts);
             
             log_message_result(&message_result, bytes);
@@ -257,7 +259,7 @@ mod mocks {
     use std::sync::mpsc::{self, Sender, Receiver};
 
     use hyper::error::{self};
-    use hyper::net::{NetworkConnector, NetworkStream, ContextVerifier};
+    use hyper::net::{NetworkConnector, NetworkStream};
     
     pub struct MockConnector {
         pub receivers: RefCell<Vec<Receiver<Vec<u8>>>>
@@ -279,8 +281,6 @@ mod mocks {
             
             Ok(MockStream{ sender: send })
         }
-        
-        fn set_ssl_verifier(&mut self, _: ContextVerifier) { }
     }
     
     pub struct MockStream {
@@ -341,7 +341,7 @@ mod tests {
         
             for recv in recv_list {
                 for recv_buf in recv {
-                    buffer.push_all(&recv_buf[..])
+                    buffer.extend(&recv_buf[..])
                 }
             }
             

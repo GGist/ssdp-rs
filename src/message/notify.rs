@@ -1,4 +1,5 @@
 use std::borrow::{Cow};
+use std::fmt::{Debug};
 use std::net::{IpAddr};
 use std::str::{FromStr};
 
@@ -66,7 +67,7 @@ impl HeaderMut for NotifyMessage {
         self.message.set(value)
     }
     
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> {
+    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         self.message.set_raw(name, value)
     }
 }

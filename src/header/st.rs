@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Display, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 use {FieldMap};
@@ -24,15 +25,15 @@ impl Header for ST {
         ST_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return None
+            return Err(Error::Header)
         }
         
         if &raw[0][..] == ST_ALL_VALUE.as_bytes() {
-            Some(ST::All)
+            Ok(ST::All)
         } else {
-            FieldMap::new(&raw[0][..]).map( |x| ST::Target(x) )
+            FieldMap::new(&raw[0][..]).map( |x| ST::Target(x) ).ok_or(Error::Header)
         }
     }
 }
@@ -60,7 +61,7 @@ mod tests {
         let st_all_header = &[b"ssdp:all"[..].to_vec()];
     
         match ST::parse_header(st_all_header) {
-            Some(ST::All) => (),
+            Ok(ST::All) => (),
             _ => panic!("Failed To Match ST::All Header")
         }
     }
@@ -70,7 +71,7 @@ mod tests {
         let st_upnp_root_header = &[b"upnp:some_identifier"[..].to_vec()];
     
         match ST::parse_header(st_upnp_root_header) {
-            Some(ST::Target(FieldMap::UPnP(_))) => (),
+            Ok(ST::Target(FieldMap::UPnP(_))) => (),
             _ => panic!("Failed To Match ST::Target Header To FieldMap::UPnP")
         }
     }
@@ -80,7 +81,7 @@ mod tests {
         let st_urn_root_header = &[b"urn:some_identifier"[..].to_vec()];
     
         match ST::parse_header(st_urn_root_header) {
-            Some(ST::Target(FieldMap::URN(_))) => (),
+            Ok(ST::Target(FieldMap::URN(_))) => (),
             _ => panic!("Failed To Match ST::Target Header To FieldMap::URN")
         }
     }
@@ -90,7 +91,7 @@ mod tests {
         let st_uuid_root_header = &[b"uuid:some_identifier"[..].to_vec()];
     
         match ST::parse_header(st_uuid_root_header) {
-            Some(ST::Target(FieldMap::UUID(_))) => (),
+            Ok(ST::Target(FieldMap::UUID(_))) => (),
             _ => panic!("Failed To Match ST::Target Header To FieldMap::UUID")
         }
     }

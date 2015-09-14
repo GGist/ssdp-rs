@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 const NTS_HEADER_NAME: &'static str = "NTS";
@@ -31,19 +32,19 @@ impl Header for NTS {
         NTS_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return None
+            return Err(Error::Header)
         }
         
         if &raw[0][..] == ALIVE_HEADER.as_bytes() {
-            Some(NTS::Alive)
+            Ok(NTS::Alive)
         } else if &raw[0][..] == UPDATE_HEADER.as_bytes() {
-            Some(NTS::Update)
+            Ok(NTS::Update)
         } else if &raw[0][..] == BYEBYE_HEADER.as_bytes() {
-            Some(NTS::ByeBye)
+            Ok(NTS::ByeBye)
         } else {
-            None
+            Err(Error::Header)
         }
     }
 }
@@ -71,7 +72,7 @@ mod tests {
         let alive_header = &[b"ssdp:alive"[..].to_vec()];
         
         match NTS::parse_header(alive_header) {
-            Some(NTS::Alive) => (),
+            Ok(NTS::Alive) => (),
             _                => panic!("Didn't Match With NTS::Alive")
         };
     }
@@ -81,7 +82,7 @@ mod tests {
         let update_header = &[b"ssdp:update"[..].to_vec()];
         
         match NTS::parse_header(update_header) {
-            Some(NTS::Update) => (),
+            Ok(NTS::Update) => (),
             _                => panic!("Didn't Match With NTS::Update")
         };
     }
@@ -91,7 +92,7 @@ mod tests {
         let byebye_header = &[b"ssdp:byebye"[..].to_vec()];
         
         match NTS::parse_header(byebye_header) {
-            Some(NTS::ByeBye) => (),
+            Ok(NTS::ByeBye) => (),
             _                => panic!("Didn't Match With NTS::ByeBye")
         };
     }

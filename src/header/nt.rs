@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Display, Result};
 
+use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
 use {FieldMap};
@@ -27,14 +28,14 @@ impl Header for NT {
         NT_HEADER_NAME
     }
     
-    fn parse_header(raw: &[Vec<u8>]) -> Option<Self> {
+    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return None
+            return Err(Error::Header)
         }
         
         match FieldMap::new(&raw[0][..]) {
-            Some(n) => Some(NT(n)),
-            None    => None
+            Some(n) => Ok(NT(n)),
+            None    => Err(Error::Header)
         }
     }
 }
@@ -59,7 +60,7 @@ mod tests {
         let uuid_header = &["uuid:a984bc8c-aaf0-5dff-b980-00d098bda247".to_string().into_bytes()];
 
         let data = match NT::parse_header(uuid_header) {
-            Some(NT(UUID(n))) => n,
+            Ok(NT(UUID(n))) => n,
             _                 => panic!("uuid Token Not Parsed")
         };
         
@@ -71,7 +72,7 @@ mod tests {
         let upnp_header = &["upnp:rootdevice".to_string().into_bytes()];
             
         let data = match NT::parse_header(upnp_header) {
-            Some(NT(UPnP(n))) => n,
+            Ok(NT(UPnP(n))) => n,
             _                 => panic!("upnp Token Not Parsed")
         };
         
@@ -83,7 +84,7 @@ mod tests {
         let urn_header = &["urn:schemas-upnp-org:device:printer:1".to_string().into_bytes()];
             
         let data = match NT::parse_header(urn_header) {
-            Some(NT(URN(n))) => n,
+            Ok(NT(URN(n))) => n,
             _                => panic!("urn Token Not Parsed")
         };
         
@@ -95,7 +96,7 @@ mod tests {
         let unknown_header = &["max-age:1500::upnp:rootdevice".to_string().into_bytes()];
             
         let (k, v) = match NT::parse_header(unknown_header) {
-            Some(NT(Unknown(k, v))) => (k, v),
+            Ok(NT(Unknown(k, v))) => (k, v),
             _                       => panic!("Unknown Token Not Parsed")
         };
         
@@ -112,7 +113,7 @@ mod tests {
         let short_header = &["a:a".to_string().into_bytes()];
         
         let (k, v) = match NT::parse_header(short_header) {
-            Some(NT(Unknown(k, v))) => (k, v),
+            Ok(NT(Unknown(k, v))) => (k, v),
             _                       => panic!("Unknown Short Token Not Parsed")
         };
         

@@ -2,7 +2,7 @@ use std::io::{self};
 use std::net::{UdpSocket, ToSocketAddrs};
 
 use hyper::error::{self};
-use hyper::net::{NetworkConnector, ContextVerifier};
+use hyper::net::{NetworkConnector};
 
 use net::{self};
 use net::sender::{UdpSender};
@@ -38,6 +38,4 @@ impl NetworkConnector for UdpConnector {
         
         Ok(UdpSender::new(udp_sock, sock_addr))
     }
-    
-    fn set_ssl_verifier(&mut self, _: ContextVerifier) { () }
 }
