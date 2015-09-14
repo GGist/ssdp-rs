@@ -7,18 +7,17 @@ use std::io::{self, Error, ErrorKind};
 use std::net::{ToSocketAddrs, UdpSocket, SocketAddr, IpAddr, Ipv4Addr};
 use std::mem;
 
+#[cfg(windows)]
+use std::os::windows::io::{RawSocket, FromRawSocket};
+
+#[cfg(not(windows))]
+use std::os::unix::io::{RawFd, FromRawFd};
+
 use libc;
 
 pub mod connector;
 pub mod packet;
 pub mod sender;
-
-// I found that most of the fd's for UdpSockets were 32 bits but the UdpSockets
-// themselves were 64 bits. I created a bunch of UdpSockets and looked at the
-// bit representation of the value as a u64. All 32 of the upper bits in all
-// of the sockets were set to the upper bits of 910533066752 so we need to
-// OR our 32 bit socket with this number in order to cast to a UdpSocket.
-const MUCH_MAGIC_NUMBER_WOW: u64 = 910533066752;
 
 #[cfg(windows)]
 type Socket = libc::SOCKET;
@@ -41,14 +40,12 @@ pub fn bind_reuse<A: ToSocketAddrs>(local_addr: A) -> io::Result<UdpSocket> {
     try!(init_sock_api());
     
     let local_addr = try!(addr_from_trait(local_addr));
-    let udp_socket = try!(create_udp_socket(&local_addr));
+    let socket = try!(create_udp_socket(&local_addr));
     
-    try!(reuse_addr(udp_socket));
-    try!(bind_addr(udp_socket, &local_addr));
+    try!(reuse_addr(socket));
+    try!(bind_addr(socket, &local_addr));
     
-    let size_correction: u64 = MUCH_MAGIC_NUMBER_WOW | (udp_socket as u64);
-    
-    Ok(unsafe{ mem::transmute::<u64, UdpSocket>(size_correction) })
+    Ok(udp_socket_from_socket(socket))
 }
 
 /// Join a multicast address on the current UdpSocket.
@@ -172,6 +169,20 @@ fn set_membership_ipv4(socket: Socket, iface_addr: &Ipv4Addr,
 /// Convert the ipv4 address to a single number.
 fn ipv4addr_as_in_addr(addr: &Ipv4Addr) -> libc::in_addr {
     unsafe{ mem::transmute_copy::<Ipv4Addr, libc::in_addr>(addr) }
+}
+
+#[cfg(windows)]
+fn udp_socket_from_socket(socket: Socket) -> UdpSocket {
+    let raw_socket = unsafe{ mem::transmute::<Socket, RawSocket>(socket) };
+    
+    unsafe{ UdpSocket::from_raw_socket(raw_socket) }
+}
+
+#[cfg(not(windows))]
+fn udp_socket_from_socket(socket: Socket) -> UdpSocket {
+    let raw_fd = unsafe{ mem::transmute::<Socket, RawFd>(socket) };
+    
+    unsafe{ UdpSocket::from_raw_fd(raw_fd) }
 }
 
 /// Check The Return Value Of A Call To libc::socket().
