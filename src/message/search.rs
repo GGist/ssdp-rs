@@ -42,10 +42,12 @@ impl SearchRequest {
             try!(self.message.send(connector, &dst_addr));
         }
         
-        let connectors = connectors.map_in_place(|conn| conn.deconstruct());
+        let mut raw_connectors = Vec::with_capacity(connectors.len());
+        raw_connectors.extend(connectors.into_iter().map(|conn| conn.deconstruct() ));
+        
         let opt_timeout = opt_unicast_timeout(self.get::<MX>());
         
-        Ok(try!(SSDPReceiver::new(connectors, opt_timeout)))
+        Ok(try!(SSDPReceiver::new(raw_connectors, opt_timeout)))
     }
     
     /// Send this search request to the standard multicast address.
@@ -61,9 +63,10 @@ impl SearchRequest {
             try!(self.message.send(conn, &mcast_addr));
         }
         
-        let connectors = connectors.map_in_place(|conn| conn.deconstruct());
+        let mut raw_connectors = Vec::with_capacity(connectors.len());
+        raw_connectors.extend(connectors.into_iter().map(|conn| conn.deconstruct() ));
     
-        Ok(try!(SSDPReceiver::new(connectors, Some(mcast_timeout))))
+        Ok(try!(SSDPReceiver::new(raw_connectors, Some(mcast_timeout))))
     }
 }
 

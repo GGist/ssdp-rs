@@ -14,7 +14,7 @@ use {SSDPResult};
 use net::packet::{PacketReceiver};
 
 /// Trait for constructing an object from some serialized SSDP message.
-pub trait FromRawSSDP {
+pub trait FromRawSSDP: Sized {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<Self>;
 }
 

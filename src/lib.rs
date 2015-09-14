@@ -1,4 +1,4 @@
-#![feature(into_cow, ip_addr, lookup_host, udp, map_in_place, reflect_marker, slice_position_elem)]
+#![feature(into_cow, ip_addr, lookup_host, reflect_marker)]
 
 //! An asynchronous abstraction for discovering devices and services on a network.
 //!

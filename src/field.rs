@@ -35,7 +35,7 @@ impl FieldMap {
     ///
     /// Separation will occur at the first colon encountered.
     pub fn new(field: &[u8]) -> Option<FieldMap> {
-        let split_index = match field.position_elem(&PAIR_SEPARATOR) {
+        let split_index = match field.iter().position(|&b| b == PAIR_SEPARATOR) {
             Some(n) => n,
             None    => return None
         };

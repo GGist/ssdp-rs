@@ -13,12 +13,14 @@ pub struct UdpConnector(UdpSocket);
 
 impl UdpConnector {
     /// Create a new UdpConnector that will be bound to the given local address.
-    pub fn new<A: ToSocketAddrs>(local_addr: A, multicast_ttl: Option<i32>) -> io::Result<UdpConnector> {
+    pub fn new<A: ToSocketAddrs>(local_addr: A, _: Option<i32>) -> io::Result<UdpConnector> {
         let udp = try!(UdpSocket::bind(local_addr));
         
-        if let Some(n) = multicast_ttl {
+        // TODO: Follow the ssdp/upnp spec and specify a time to live when we can do so for UdpSockets
+        // (if we can do that without adding methods to our net module using setsockopt)
+        /*if let Some(n) = multicast_ttl {
             try!(udp.set_multicast_time_to_live(n));
-        }
+        }*/
         
         Ok(UdpConnector(udp))
     }
