@@ -7,9 +7,9 @@ os:
   
 install:
   - ps: Start-FileDownload 'https://static.rust-lang.org/dist/rust-nightly-i686-pc-windows-gnu.exe'
-  - ps: Start-FileDownload 'http://slproweb.com/download/Win32OpenSSL-1_0_2a.exe'
+  - ps: Start-FileDownload 'http://slproweb.com/download/Win32OpenSSL-1_0_2d.exe'
   - rust-nightly-i686-pc-windows-gnu.exe /VERYSILENT /NORESTART /DIR="C:\Rust"
-  - Win32OpenSSL-1_0_2a.exe /VERYSILENT /NORESTART /DIR="C:\OpenSSL-Win32" /SUPPRESSMSGBOXES
+  - Win32OpenSSL-1_0_2d.exe /VERYSILENT /NORESTART /DIR="C:\OpenSSL-Win32" /SUPPRESSMSGBOXES
   - SET PATH=%PATH%;C:\MinGW\bin
   - SET PATH=%PATH%;C:\Rust\bin
   - SET OPENSSL_INCLUDE_DIR=C:\OpenSSL-Win32\include
