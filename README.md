@@ -6,7 +6,7 @@ Dashboard
 ---------
 | Linux CI | Windows CI | Test Coverage | Crate | Documentation |
 |:--------:|:----------:|:-------------:|:---------:|:-------------:|:-------:|
-| [![Build Status](https://travis-ci.org/GGist/ssdp-rs.svg?branch=master)](https://travis-ci.org/GGist/ssdp-rs) | [![Build status](https://ci.appveyor.com/api/projects/status/aoupr0fsxl28a35q?svg=true)](https://ci.appveyor.com/project/GGist/ssdp-rs) | [![Coverage Status](https://coveralls.io/repos/GGist/ssdp-rs/badge.svg?branch=master)](https://coveralls.io/r/GGist/ssdp-rs?branch=master) | [![Crate](https://img.shields.io/crates/v/ssdp.svg)](https://crates.io/crates/ssdp) | [![Docs](https://img.shields.io/badge/docs-up--to--date-blue.svg)](http://ggist.github.io/ssdp-rs/index.html)
+| [![Build Status](https://travis-ci.org/GGist/ssdp-rs.svg?branch=master)](https://travis-ci.org/GGist/ssdp-rs) | [![Build status](https://ci.appveyor.com/api/projects/status/aoupr0fsxl28a35q?svg=true)](https://ci.appveyor.com/project/GGist/ssdp-rs) | [![Coverage Status](https://coveralls.io/repos/GGist/ssdp-rs/badge.svg?branch=master)](https://coveralls.io/r/GGist/ssdp-rs?branch=master) | [![Crate](http://meritbadge.herokuapp.com/ssdp)](https://crates.io/crates/ssdp) | [![Docs](https://img.shields.io/badge/docs-up--to--date-blue.svg)](http://ggist.github.io/ssdp-rs/index.html)
 
 **Informative Links:**
 * ~~https://tools.ietf.org/html/draft-cai-ssdp-v1-03~~ EXPIRED
