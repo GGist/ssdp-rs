@@ -3,7 +3,7 @@ use std::fmt::{Debug};
 use std::net::{ToSocketAddrs};
 
 use hyper::header::{Header, HeaderFormat};
-use time::{Duration};
+use std::time::Duration;
 
 use error::{SSDPResult, MsgError};
 use header::{HeaderRef, HeaderMut, MX};
@@ -28,7 +28,7 @@ impl SearchRequest {
     pub fn new() -> SearchRequest {
         SearchRequest{ message: SSDPMessage::new(MessageType::Search) }
     }
-    
+
     /// Send this search request to a single host.
     ///
     /// Currently this sends the unicast message on all available network
@@ -36,36 +36,36 @@ impl SearchRequest {
     /// on either different subnets or different ip address ranges.
     pub fn unicast<A: ToSocketAddrs>(&mut self, dst_addr: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
         let mut connectors = try!(message::all_local_connectors(None));
-        
+
         // Send On All Connectors
         for connector in connectors.iter_mut() {
             try!(self.message.send(connector, &dst_addr));
         }
-        
+
         let mut raw_connectors = Vec::with_capacity(connectors.len());
         raw_connectors.extend(connectors.into_iter().map(|conn| conn.deconstruct() ));
-        
+
         let opt_timeout = opt_unicast_timeout(self.get::<MX>());
-        
+
         Ok(try!(SSDPReceiver::new(raw_connectors, opt_timeout)))
     }
-    
+
     /// Send this search request to the standard multicast address.
     pub fn multicast(&mut self) -> SSDPResult<SSDPReceiver<SearchResponse>> {
         let mcast_addr = (message::UPNP_MULTICAST_ADDR, message::UPNP_MULTICAST_PORT);
         let mcast_timeout = try!(multicast_timeout(self.get::<MX>()));
         let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);
-        
+
         let mut connectors = try!(message::all_local_connectors(mcast_ttl));
-        
+
         // Send On All Connectors
         for conn in connectors.iter_mut() {
             try!(self.message.send(conn, &mcast_addr));
         }
-        
+
         let mut raw_connectors = Vec::with_capacity(connectors.len());
         raw_connectors.extend(connectors.into_iter().map(|conn| conn.deconstruct() ));
-    
+
         Ok(try!(SSDPReceiver::new(raw_connectors, Some(mcast_timeout))))
     }
 }
@@ -73,7 +73,7 @@ impl SearchRequest {
 /// Get the require timeout to use for a multicast search request.
 fn multicast_timeout(mx: Option<&MX>) -> SSDPResult<Duration> {
     match mx {
-        Some(&MX(n)) => Ok(Duration::seconds((n + NETWORK_TIMEOUT_OVERHEAD) as i64)),
+        Some(&MX(n)) => Ok(Duration::new((n + NETWORK_TIMEOUT_OVERHEAD) as u64, 0)),
         None         => try!(Err(MsgError::new("Multicast Searches Require An MX Header")))
     }
 }
@@ -81,18 +81,18 @@ fn multicast_timeout(mx: Option<&MX>) -> SSDPResult<Duration> {
 /// Get the default timeout to use for a unicast search request.
 fn opt_unicast_timeout(mx: Option<&MX>) -> Option<Duration> {
     match mx {
-        Some(&MX(n)) => Some(Duration::seconds((n + NETWORK_TIMEOUT_OVERHEAD) as i64)),
-        None         => Some(Duration::seconds(DEFAULT_UNICAST_TIMEOUT as i64))
+        Some(&MX(n)) => Some(Duration::new((n + NETWORK_TIMEOUT_OVERHEAD) as u64, 0)),
+        None         => Some(Duration::new(DEFAULT_UNICAST_TIMEOUT as u64, 0))
     }
 }
 
 impl FromRawSSDP for SearchRequest {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<SearchRequest> {
         let message = try!(SSDPMessage::raw_ssdp(bytes));
-        
+
         if message.message_type() != MessageType::Search {
             try!(Err(MsgError::new("SSDP Message Received Is Not A SearchRequest")))
-        } else { 
+        } else {
             Ok(SearchRequest{ message: message })
         }
     }
@@ -102,7 +102,7 @@ impl HeaderRef for SearchRequest {
     fn get<H>(&self) -> Option<&H> where H: Header + HeaderFormat {
         self.message.get::<H>()
     }
-    
+
     fn get_raw(&self, name: &str) -> Option<&[Vec<u8>]> {
         self.message.get_raw(name)
     }
@@ -112,7 +112,7 @@ impl HeaderMut for SearchRequest {
     fn set<H>(&mut self, value: H) where H: Header + HeaderFormat {
         self.message.set(value)
     }
-    
+
     fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         self.message.set_raw(name, value)
     }
@@ -129,7 +129,7 @@ impl SearchResponse {
     pub fn new() -> SearchResponse {
         SearchResponse{ message: SSDPMessage::new(MessageType::Response) }
     }
-    
+
     /// Send this search response to a single host.
     ///
     /// Currently this sends the unicast message on all available network
@@ -137,12 +137,12 @@ impl SearchResponse {
     /// on either different subnets or different ip address ranges.
     pub fn unicast<A: ToSocketAddrs>(&mut self, dst_addr: A) -> SSDPResult<()> {
         let mut connectors = try!(message::all_local_connectors(None));
-        
+
         // Send On All Connectors
         for conn in connectors.iter_mut() {
             try!(self.message.send(conn, &dst_addr));
         }
-        
+
         Ok(())
     }
 }
@@ -150,7 +150,7 @@ impl SearchResponse {
 impl FromRawSSDP for SearchResponse {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<SearchResponse> {
         let message = try!(SSDPMessage::raw_ssdp(bytes));
-        
+
         if message.message_type() != MessageType::Response {
             try!(Err(MsgError::new("SSDP Message Received Is Not A SearchResponse")))
         } else {
@@ -163,7 +163,7 @@ impl HeaderRef for SearchResponse {
     fn get<H>(&self) -> Option<&H> where H: Header + HeaderFormat {
         self.message.get::<H>()
     }
-    
+
     fn get_raw(&self, name: &str) -> Option<&[Vec<u8>]> {
         self.message.get_raw(name)
     }
@@ -173,7 +173,7 @@ impl HeaderMut for SearchResponse {
     fn set<H>(&mut self, value: H) where H: Header + HeaderFormat {
         self.message.set(value)
     }
-    
+
     fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         self.message.set_raw(name, value)
     }
@@ -182,22 +182,22 @@ impl HeaderMut for SearchResponse {
 #[cfg(test)]
 mod tests {
     use header::{MX};
-    
+
     #[test]
     fn positive_multicast_timeout() {
         super::multicast_timeout(Some(&MX(5))).unwrap();
     }
-    
+
     #[test]
     fn positive_some_opt_multicast_timeout() {
         super::opt_unicast_timeout(Some(&MX(5))).unwrap();
     }
-    
+
     #[test]
     fn positive_none_opt_multicast_timeout() {
         super::opt_unicast_timeout(None).unwrap();
     }
-    
+
     #[test]
     #[should_panic]
     fn negative_multicast_timeout() {

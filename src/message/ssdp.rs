@@ -19,7 +19,7 @@ use hyper::version::{HttpVersion};
 use {SSDPResult, SSDPError};
 use header::{HeaderRef, HeaderMut};
 use message::{MessageType};
-use net::{self};
+use net::{self, SocketIp};
 use receiver::{FromRawSSDP};
 
 /// Only Valid SearchResponse Code
@@ -44,19 +44,19 @@ impl SSDPMessage {
     pub fn new(message_type: MessageType) -> SSDPMessage {
         SSDPMessage{ method: message_type, headers: Headers::new() }
     }
-    
+
     /// Get the type of this message.
     pub fn message_type(&self) -> MessageType {
         self.method
     }
-    
+
     /// Send this request to the given destination address using the given connector.
     ///
     /// The host header field will be taken care of by the underlying library.
     pub fn send<A: ToSocketAddrs, C, S>(&self, connector: &mut C, dst_addr: A) -> SSDPResult<()>
         where C: NetworkConnector<Stream=S>, S: Into<Box<NetworkStream + Send>> {
         let dst_sock_addr = try!(net::addr_from_trait(dst_addr));
-        
+
         match self.method {
             MessageType::Notify => {
                 send_request(NOTIFY_METHOD, &self.headers, connector, dst_sock_addr)
@@ -65,11 +65,11 @@ impl SSDPMessage {
                 send_request(SEARCH_METHOD, &self.headers, connector, dst_sock_addr)
             },
             MessageType::Response => {
-                let dst_ip_string = dst_sock_addr.ip().to_string();
+                let dst_ip_string = SocketIp::ip(&dst_sock_addr).to_string();
                 let dst_port = dst_sock_addr.port();
-                
+
                 let net_stream = try!(connector.connect(&dst_ip_string[..], dst_port, "")).into();
-                
+
                 send_response(&self.headers, net_stream)
             }
         }
@@ -90,7 +90,7 @@ fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_ad
 
     copy_headers(headers, request.headers_mut());
     request.headers_mut().set(ContentLength(0));
-    
+
     // Send Will Always Fail Within The UdpConnector Which Is Intended So That
     // Hyper Does Not Block For A Response Since We Are Handling That Ourselves.
 
@@ -103,16 +103,16 @@ fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_ad
 fn send_response<W>(headers: &Headers, mut dst_writer: W) -> SSDPResult<()>
     where W: Write {
     let mut temp_headers = Headers::new();
-    
+
     copy_headers(headers, &mut temp_headers);
     temp_headers.set(ContentLength(0));
-    
+
     let mut response = Response::new(&mut dst_writer as &mut Write, &mut temp_headers);
     *response.status_mut() = StatusCode::Ok;
-    
+
     // Have to make sure response is destroyed here for lifetime issues with temp_headers
     try!(try!(response.start()).end());
-    
+
     Ok(())
 }
 
@@ -121,7 +121,7 @@ fn url_from_addr(addr: SocketAddr) -> SSDPResult<Url> {
     let str_url = BASE_HOST_URL.chars()
         .chain(addr.to_string()[..].chars())
         .collect::<String>();
-    
+
     Ok(try!(Url::parse(&str_url[..])))
 }
 
@@ -129,7 +129,7 @@ fn url_from_addr(addr: SocketAddr) -> SSDPResult<Url> {
 fn copy_headers(src_headers: &Headers, dst_headers: &mut Headers) {
     // Not the best solution since we are doing a lot of string
     // allocations for no benefit other than to transfer the headers.
-    
+
     // TODO: See if there is a way around calling to_owned() since set_raw
     // requires a Cow<'static, _> and we only have access to Cow<'a, _>.
     let iter = src_headers.iter();
@@ -143,7 +143,7 @@ impl HeaderRef for SSDPMessage {
     fn get<H>(&self) -> Option<&H> where H: Header + HeaderFormat {
         HeaderRef::get::<H>(&self.headers)
     }
-    
+
     fn get_raw(&self, name: &str) -> Option<&[Vec<u8>]> {
         HeaderRef::get_raw(&self.headers, name)
     }
@@ -153,7 +153,7 @@ impl HeaderMut for SSDPMessage {
     fn set<H>(&mut self, value: H) where H: Header + HeaderFormat {
         HeaderMut::set(&mut self.headers, value)
     }
-    
+
     fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
         HeaderMut::set_raw(&mut self.headers, name, value)
     }
@@ -162,20 +162,20 @@ impl HeaderMut for SSDPMessage {
 impl FromRawSSDP for SSDPMessage {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<SSDPMessage> {
         let mut buf_reader = BufReader::new(bytes);
-        
+
         if let Ok(parts) = h1::parse_request(&mut buf_reader) {
             let message_result = message_from_request(parts);
-            
+
             log_message_result(&message_result, bytes);
             message_result
         } else if let Ok(parts) = h1::parse_response(&mut buf_reader) {
             let message_result = message_from_response(parts);
-            
+
             log_message_result(&message_result, bytes);
             message_result
         } else {
             debug!("Received Invalid HTTP: {}", String::from_utf8_lossy(bytes));
-        
+
             Err(SSDPError::InvalidHttp(bytes.to_owned()))
         }
     }
@@ -199,7 +199,7 @@ fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSD
 
     try!(validate_http_version(parts.version));
     try!(validate_http_host(&headers));
-    
+
     match parts.subject {
         (Method::Extension(n), RequestUri::Star) => {
             match &n[..] {
@@ -219,10 +219,10 @@ fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSD
 fn message_from_response(parts: Incoming<RawStatus>) -> SSDPResult<SSDPMessage> {
     let RawStatus(status_code, _) = parts.subject;
     let headers = parts.headers;
-    
+
     try!(validate_http_version(parts.version));
     try!(validate_response_code(status_code));
-    
+
     Ok(SSDPMessage{ method: MessageType::Response, headers: headers })
 }
 
@@ -256,58 +256,65 @@ mod mocks {
     use std::io::{self, Read, Write, ErrorKind};
     use std::marker::{Reflect};
     use std::net::{SocketAddr};
+    use std::time::Duration;
     use std::sync::mpsc::{self, Sender, Receiver};
 
     use hyper::error::{self};
     use hyper::net::{NetworkConnector, NetworkStream};
-    
+
     pub struct MockConnector {
         pub receivers: RefCell<Vec<Receiver<Vec<u8>>>>
     }
-    
+
     impl MockConnector {
         pub fn new() -> MockConnector {
             MockConnector{ receivers: RefCell::new(Vec::new()) }
         }
     }
-    
+
     impl NetworkConnector for MockConnector {
         type Stream = MockStream;
-    
+
         fn connect(&self, _: &str, _: u16, _: &str) -> error::Result<Self::Stream> {
             let (send, recv) = mpsc::channel();
-            
+
             self.receivers.borrow_mut().push(recv);
-            
+
             Ok(MockStream{ sender: send })
         }
     }
-    
+
     pub struct MockStream {
         sender: Sender<Vec<u8>>
     }
-    
+
     impl NetworkStream for MockStream {
         fn peer_addr(&mut self) -> io::Result<SocketAddr> {
             Err(io::Error::new(ErrorKind::AddrNotAvailable, ""))
         }
+        fn set_read_timeout(&self, _dur: Option<Duration>) -> io::Result<()> {
+            Ok(())
+        }
+        fn set_write_timeout(&self, _dur: Option<Duration>) -> io::Result<()> {
+            Ok(())
+        }
     }
-    
+
     unsafe impl Send for MockStream { }
-    
+
     impl Reflect for MockStream { }
-    
+
     impl Read for MockStream {
         fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
             Err(io::Error::new(ErrorKind::ConnectionAborted, ""))
         }
     }
-    
+
     impl Write for MockStream {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             // Hyper will generate a request with a /, we need to intercept that.
             let mut buffer = vec![0u8; buf.len()];
-            
+
             let mut found = false;
             for (src, dst) in buf.iter().zip(buffer.iter_mut()) {
                 if *src == b'/' && !found && buf[0] != b'H' {
@@ -317,12 +324,12 @@ mod mocks {
                     *dst = *src;
                 }
             }
-            
+
             self.sender.send(buffer).unwrap();
-            
+
             Ok(buf.len())
         }
-        
+
         fn flush(&mut self) -> io::Result<()> { Ok(()) }
     }
 }
@@ -331,121 +338,121 @@ mod mocks {
 mod tests {
     mod send {
         use std::sync::mpsc::{Receiver};
-    
+
         use super::super::mocks::{MockConnector};
         use super::super::{SSDPMessage};
         use message::{MessageType};
-        
+
         fn join_buffers(recv_list: &[Receiver<Vec<u8>>]) -> Vec<u8> {
             let mut buffer = Vec::new();
-        
+
             for recv in recv_list {
                 for recv_buf in recv {
                     buffer.extend(&recv_buf[..])
                 }
             }
-            
+
             buffer
         }
-        
+
         #[test]
         fn positive_search_method_line() {
             let message = SSDPMessage::new(MessageType::Search);
             let mut connector = MockConnector::new();
-            
+
             message.send(&mut connector, ("127.0.0.1", 0)).unwrap();
-            
+
             let sent_message = String::from_utf8(
                 join_buffers(&*connector.receivers.borrow())
             ).unwrap();
-            
+
             assert_eq!(&sent_message[..19], "M-SEARCH * HTTP/1.1");
         }
-        
+
         #[test]
         fn positive_notify_method_line() {
             let message = SSDPMessage::new(MessageType::Notify);
             let mut connector = MockConnector::new();
-            
+
             message.send(&mut connector, ("127.0.0.1", 0)).unwrap();
-            
+
             let sent_message = String::from_utf8(
                 join_buffers(&*connector.receivers.borrow())
             ).unwrap();
-            
+
             assert_eq!(&sent_message[..17], "NOTIFY * HTTP/1.1");
         }
-        
+
         #[test]
         fn positive_response_method_line() {
             let message = SSDPMessage::new(MessageType::Response);
             let mut connector = MockConnector::new();
-            
+
             message.send(&mut connector, ("127.0.0.1", 0)).unwrap();
-            
+
             let sent_message = String::from_utf8(
                 join_buffers(&*connector.receivers.borrow())
             ).unwrap();
-            
+
             assert_eq!(&sent_message[..15], "HTTP/1.1 200 OK");
         }
-        
+
         #[test]
         fn positive_host_header() {
             let message = SSDPMessage::new(MessageType::Search);
             let mut connector = MockConnector::new();
-            
+
             message.send(&mut connector, ("127.0.0.1", 0)).unwrap();
-            
+
             let sent_message = String::from_utf8(
                 join_buffers(&*connector.receivers.borrow())
             ).unwrap();
-            
+
             assert!(sent_message.contains("Host: 127.0.0.1:0"));
         }
     }
-    
+
     mod parse {
         use super::super::{SSDPMessage};
         use header::{HeaderRef};
         use receiver::{FromRawSSDP};
-    
+
         #[test]
         fn positive_valid_http() {
             let raw_message = "NOTIFY * HTTP/1.1\r\nHOST: 192.168.1.1\r\n\r\n";
-            
+
             SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
         }
-        
+
         #[test]
         fn positive_intact_header() {
             let raw_message = "NOTIFY * HTTP/1.1\r\nHOST: 192.168.1.1\r\n\r\n";
             let message = SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
-            
+
             assert_eq!(&message.get_raw("Host").unwrap()[0][..], &b"192.168.1.1"[..]);
         }
-        
+
         #[test]
         #[should_panic]
         fn negative_http_version() {
             let raw_message = "NOTIFY * HTTP/2.0\r\nHOST: 192.168.1.1\r\n\r\n";
-            
+
             SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
         }
-        
+
         #[test]
         #[should_panic]
         fn negative_no_host() {
             let raw_message = "NOTIFY * HTTP/1.1\r\n\r\n";
-            
+
             SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
         }
-        
+
         #[test]
         #[should_panic]
         fn negative_path_included() {
             let raw_message = "NOTIFY / HTTP/1.1\r\n\r\n";
-            
+
             SSDPMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
         }
     }
