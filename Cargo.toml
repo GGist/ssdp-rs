@@ -16,7 +16,7 @@ keywords = ["upnp", "ssdp", "simple", "service", "discovery"]
 license = "MIT"
 
 [dependencies]
-hyper = "0.6.0"
+hyper = "0.7.0"
 libc  = "0.1.0"
 log   = "0.3.0"
 time  = "0.1.0"
