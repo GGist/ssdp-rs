@@ -1,14 +1,15 @@
 environment:
   matrix:
   - TARGET: i686-pc-windows-gnu
+    OPENSSL: C:\OpenSSL-Win32
   - TARGET: x86_64-pc-windows-gnu
+    OPENSSL: C:\OpenSSL-Win64
 
 install:
-  - ps: Start-FileDownload 'https://slproweb.com/download/Win32OpenSSL-1_0_2e.exe'
-  - Win32OpenSSL-1_0_2e.exe /VERYSILENT /NORESTART /DIR="C:\OpenSSL-Win32" /SUPPRESSMSGBOXES
-  - SET OPENSSL_INCLUDE_DIR=C:\OpenSSL-Win32\include
-  - SET OPENSSL_LIB_DIR=C:\OpenSSL-Win32\bin
-  - CP C:\OpenSSL-Win32\bin\ssleay32.dll C:\OpenSSL-Win32\bin\libssl32.dll
+  - SET OPENSSL_INCLUDE_DIR=%OPENSSL%\include
+  - SET OPENSSL_LIB_DIR=%OPENSSL%\bin
+  - dir %OPENSSL%\bin
+  - CP %OPENSSL%\bin\ssleay32.dll %OPENSSL%\bin\libssl32.dll
   - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-nightly-${env:TARGET}.exe"
   - rust-nightly-%TARGET%.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
   - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin
