@@ -12,7 +12,7 @@ addons:
 
 env:
   global:
-    - secure: rnj7kIfuey1mFuuSak7OjA3DgpPi9Gp8lmqfMNTYHsyHuhtweo1xEJQHFTRd+Cd7a8SIa+OFqYUqPD+cEp8qqqgsTzlZzDZDb9LpcUdsruUHMI1t9e6jTkaaeWAO356YmRe5NwAHRn7M2BUd9A26WxcXG7nyTUoBPjyOa0+bSDE=
+    - secure: lVC2BUp6+ayYz5bysex1SQi1kMK95b6pVRK4HH0ku6IRUPLeecRrZwiQnkNBAEVkd/GAWtq0wCR4khH+VuUcqY9rQzUEs0JD6OY2AdBs4oVDU1CJmuzb5NTDIlvYuQ+kFj12mwi+7Xg/AA8YhdAazzlq/aCu0KK0i06nPqfqe2c=
 
 branches:
   only:
