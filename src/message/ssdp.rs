@@ -1,4 +1,4 @@
-use std::borrow::{Cow, IntoCow, ToOwned};
+use std::borrow::{Cow, ToOwned};
 use std::fmt::{Debug};
 use std::io::{Write};
 use std::net::{ToSocketAddrs, SocketAddr};
@@ -134,7 +134,7 @@ fn copy_headers(src_headers: &Headers, dst_headers: &mut Headers) {
     // requires a Cow<'static, _> and we only have access to Cow<'a, _>.
     let iter = src_headers.iter();
     for view in iter {
-        dst_headers.set_raw(view.name().to_owned().into_cow(),
+        dst_headers.set_raw(Cow::Owned(view.name().to_owned()),
                             vec![view.value_string().into_bytes()]);
     }
 }
