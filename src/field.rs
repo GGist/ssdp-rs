@@ -7,7 +7,7 @@ use std::fmt::{Display, Error, Formatter};
 use std::result::{Result};
 
 /// Separator character for a FieldMap and it's value.
-pub const PAIR_SEPARATOR: u8 = b':';
+pub const PAIR_SEPARATOR: char = ':';
 
 /// Prefix for the "upnp" field key.
 const UPNP_PREFIX: &'static str = "upnp";
@@ -35,7 +35,7 @@ impl FieldMap {
     ///
     /// Separation will occur at the first colon encountered.
     pub fn new(field: &[u8]) -> Option<FieldMap> {
-        let split_index = match field.iter().position(|&b| b == PAIR_SEPARATOR) {
+        let split_index = match field.iter().position(|&b| b == PAIR_SEPARATOR as u8) {
             Some(n) => n,
             None    => return None
         };
@@ -74,7 +74,7 @@ impl Display for FieldMap {
                 v
             }
         };
-        try!(f.write_fmt(format_args!("{}", PAIR_SEPARATOR as char)));
+        try!(f.write_fmt(format_args!("{}", PAIR_SEPARATOR)));
         
         let cow_value = String::from_utf8_lossy(value);
         try!(Display::fmt(&cow_value, f));
