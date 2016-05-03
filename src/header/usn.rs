@@ -92,7 +92,7 @@ fn partition_pairs<'a, I>(header_iter: I) -> Option<(Vec<u8>, Option<Vec<u8>>)>
     for _ in 0..2 {
         match first[..].last() {
             Some(&n) => {
-                if n == field::PAIR_SEPARATOR {
+                if n == field::PAIR_SEPARATOR as u8 {
                     first.pop();
                 }
             },

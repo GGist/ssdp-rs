@@ -1,6 +1,6 @@
 [package]
 name = "ssdp"
-version = "0.1.4"
+version = "0.1.5"
 description = "An asynchronous abstraction for discovering devices and services on a network."
 
 authors = ["GGist <amiller4421@gmail.com>"]
@@ -16,10 +16,13 @@ keywords = ["upnp", "ssdp", "simple", "service", "discovery"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-hyper = "0.7.0"
 libc  = "0.1.0"
 log   = "0.3.0"
 time  = "0.1.0"
+
+[dependencies.hyper]
+version = "0.9.0"
+default-features = false
 
 [features]
 unstable = []

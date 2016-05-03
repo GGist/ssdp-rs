@@ -211,7 +211,7 @@ fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSD
         (n, RequestUri::Star)            => Err(SSDPError::InvalidMethod(n.to_string())),
         (_, RequestUri::AbsolutePath(n)) => Err(SSDPError::InvalidUri(n)),
         (_, RequestUri::Authority(n))    => Err(SSDPError::InvalidUri(n)),
-        (_, RequestUri::AbsoluteUri(n))  => Err(SSDPError::InvalidUri(n.serialize()))
+        (_, RequestUri::AbsoluteUri(n))  => Err(SSDPError::InvalidUri(n.into_string()))
     }
 }
 
