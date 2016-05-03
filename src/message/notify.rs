@@ -23,9 +23,14 @@ impl NotifyMessage {
         NotifyMessage{ message: SSDPMessage::new(MessageType::Notify) }
     }
 
-    /// Send this notify message to the standard multicast address.
+    /// Send this notify message to the standard multicast address:port.
     pub fn multicast(&mut self) -> SSDPResult<()> {
-        let mcast_addr = (message::UPNP_MULTICAST_ADDR, message::UPNP_MULTICAST_PORT);
+        self.multicast_with_port(message::UPNP_MULTICAST_PORT)
+    }
+
+    /// Send this notify message to the standard multicast address but a custom port.
+    pub fn multicast_with_port(&mut self, port: u16) -> SSDPResult<()> {
+        let mcast_addr = (message::UPNP_MULTICAST_ADDR, port);
         let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);
 
         let mut connectors = try!(message::all_local_connectors(mcast_ttl));

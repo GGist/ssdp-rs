@@ -50,9 +50,14 @@ impl SearchRequest {
         Ok(try!(SSDPReceiver::new(raw_connectors, opt_timeout)))
     }
 
-    /// Send this search request to the standard multicast address.
+    /// Send this search request to the standard multicast address:port.
     pub fn multicast(&mut self) -> SSDPResult<SSDPReceiver<SearchResponse>> {
-        let mcast_addr = (message::UPNP_MULTICAST_ADDR, message::UPNP_MULTICAST_PORT);
+        self.multicast_with_port(message::UPNP_MULTICAST_PORT)
+    }
+
+    /// Send this search request to the standard multicast address but a custom port
+    pub fn multicast_with_port(&mut self, port: u16) -> SSDPResult<SSDPReceiver<SearchResponse>> {
+        let mcast_addr = (message::UPNP_MULTICAST_ADDR, port);
         let mcast_timeout = try!(multicast_timeout(self.get::<MX>()));
         let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);
 
