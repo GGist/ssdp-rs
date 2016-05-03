@@ -40,18 +40,18 @@ fn all_local_connectors(multicast_ttl: Option<i32>) -> io::Result<Vec<UdpConnect
 /// If any of the SocketAddrs fail to resolve, this function will not return an error.
 fn map_local_ipv4<F, R>(mut f: F) -> io::Result<Vec<R>>
     where F: FnMut(&Ipv4Addr) -> io::Result<R> {
-    let host_iter = try!(net::lookup_host(""));
+    let host_iter = try!(net::lookup_host("localhost"));
     let mut obj_list = match host_iter.size_hint() {
         (_, Some(n)) => Vec::with_capacity(n),
         (_, None)    => Vec::new()
     };
-    
+
     for host in host_iter.filter_map(|host| host.ok()) {
         match host {
             SocketAddr::V4(n) => obj_list.push(try!(f(n.ip()))),
             _ => ()
         }
     }
-    
+
     Ok(obj_list)
 }
