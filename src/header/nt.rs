@@ -9,7 +9,7 @@ const NT_HEADER_NAME: &'static str = "NT";
 
 /// Represents a header used to specify a notification type.
 ///
-/// Any double colons will not be processed as separate FieldMaps.
+/// Any double colons will not be processed as separate `FieldMap`'s.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct NT(pub FieldMap);
 

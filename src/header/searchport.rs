@@ -6,11 +6,10 @@ use hyper::header::{HeaderFormat, Header};
 const SEARCHPORT_HEADER_NAME: &'static str = "SEARCHPORT.UPNP.ORG";
 
 pub const SEARCHPORT_MIN_VALUE: u16 = 49152;
-pub const SEARCHPORT_MAX_VALUE: u16 = 65535;
 
 /// Represents a header used to specify a unicast port to send search requests to.
 ///
-/// If a SearchPort header is not included in a message then the device must
+/// If a `SearchPort` header is not included in a message then the device must
 /// respond to unicast search requests on the standard port of 1900.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SearchPort(pub u16);
@@ -32,7 +31,7 @@ impl Header for SearchPort {
             Err(_) => return Err(Error::Header),
         };
 
-        if value <= SEARCHPORT_MAX_VALUE && value >= SEARCHPORT_MIN_VALUE {
+        if value >= SEARCHPORT_MIN_VALUE {
             Ok(SearchPort(value))
         } else {
             Err(Error::Header)

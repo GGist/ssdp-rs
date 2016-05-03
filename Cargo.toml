@@ -1,30 +1,26 @@
 [package]
 name = "ssdp"
 version = "0.1.6"
+authors = ["GGist <amiller4421@gmail.com>", "Ignacio Corderi <icorderi@msn.com>"]
 description = "An asynchronous abstraction for discovering devices and services on a network."
-
-authors = ["GGist <amiller4421@gmail.com>"]
-
 documentation = "http://ggist.github.io/ssdp-rs/index.html"
 homepage = "https://github.com/GGist/ssdp-rs"
+keywords = ["upnp", "ssdp", "simple", "service", "discovery"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
 repository = "https://github.com/GGist/ssdp-rs"
 
-readme = "README.md"
-
-keywords = ["upnp", "ssdp", "simple", "service", "discovery"]
-
-license = "MIT/Apache-2.0"
-
 [dependencies]
-libc  = "0.1.0"
-log   = "0.3.0"
-time  = "0.1.0"
-
-[target.'cfg(not(windows))'.dependencies] ifaces = "0.0.3"
+log = "0.3.0"
+net2 = "0.2.23"
+time = "0.1.0"
 
 [dependencies.hyper]
-version = "0.9.0"
 default-features = false
+version = "0.9.3"
 
 [features]
 unstable = []
+
+[target."cfg(not(windows))".dependencies]
+ifaces = "0.0.3"

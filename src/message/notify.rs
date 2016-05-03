@@ -1,26 +1,27 @@
-use std::borrow::{Cow};
-use std::fmt::{Debug};
-use std::str::{FromStr};
+use std::borrow::Cow;
+use std::fmt::Debug;
+use std::str::FromStr;
+use std::net::{SocketAddr, IpAddr, Ipv6Addr};
 
 use hyper::header::{Header, HeaderFormat};
 
 use error::{SSDPResult, MsgError};
 use header::{HeaderRef, HeaderMut};
 use message::{self, MessageType};
-use message::ssdp::{SSDPMessage};
-use net::{self, IpAddr, SocketIp};
+use message::ssdp::SSDPMessage;
 use receiver::{SSDPReceiver, FromRawSSDP};
+use net;
 
 /// Notify message that can be sent via multicast to devices on the network.
 #[derive(Debug, Clone)]
 pub struct NotifyMessage {
-    message: SSDPMessage
+    message: SSDPMessage,
 }
 
 impl NotifyMessage {
     /// Construct a new NotifyMessage.
-    pub fn new() -> NotifyMessage {
-        NotifyMessage{ message: SSDPMessage::new(MessageType::Notify) }
+    pub fn new() -> Self {
+        NotifyMessage { message: SSDPMessage::new(MessageType::Notify) }
     }
 
     /// Send this notify message to the standard multicast address:port.
@@ -30,17 +31,33 @@ impl NotifyMessage {
 
     /// Send this notify message to the standard multicast address but a custom port.
     pub fn multicast_with_port(&mut self, port: u16) -> SSDPResult<()> {
-        let mcast_addr = (message::UPNP_MULTICAST_ADDR, port);
         let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);
 
         let mut connectors = try!(message::all_local_connectors(mcast_ttl));
 
         // Send On All Connectors
-        for conn in connectors.iter_mut() {
-            try!(self.message.send(conn, &mcast_addr));
+        for conn in &mut connectors {
+            match try!(conn.local_addr()) {
+                SocketAddr::V4(n) => {
+                    let mcast_addr = (message::UPNP_MULTICAST_IPV4_ADDR, port);
+                    debug!("Sending ipv4 multicast through {} to {:?}", n, mcast_addr);
+                    try!(self.message.send(conn, &mcast_addr));
+                }
+                SocketAddr::V6(n) => {
+                    let mcast_addr = (message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR, port);
+                    debug!("Sending Ipv6 multicast through {} to {:?}", n, mcast_addr);
+                    try!(self.message.send(conn, &mcast_addr));
+                }
+            }
         }
 
         Ok(())
+    }
+}
+
+impl Default for NotifyMessage {
+    fn default() -> Self {
+        NotifyMessage::new()
     }
 }
 
@@ -51,13 +68,15 @@ impl FromRawSSDP for NotifyMessage {
         if message.message_type() != MessageType::Notify {
             try!(Err(MsgError::new("SSDP Message Received Is Not A NotifyMessage")))
         } else {
-            Ok(NotifyMessage{ message: message })
+            Ok(NotifyMessage { message: message })
         }
     }
 }
 
 impl HeaderRef for NotifyMessage {
-    fn get<H>(&self) -> Option<&H> where H: Header + HeaderFormat {
+    fn get<H>(&self) -> Option<&H>
+        where H: Header + HeaderFormat
+    {
         self.message.get::<H>()
     }
 
@@ -67,11 +86,15 @@ impl HeaderRef for NotifyMessage {
 }
 
 impl HeaderMut for NotifyMessage {
-    fn set<H>(&mut self, value: H) where H: Header + HeaderFormat {
+    fn set<H>(&mut self, value: H)
+        where H: Header + HeaderFormat
+    {
         self.message.set(value)
     }
 
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug {
+    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>)
+        where K: Into<Cow<'static, str>> + Debug
+    {
         self.message.set_raw(name, value)
     }
 }
@@ -82,20 +105,33 @@ pub struct NotifyListener;
 impl NotifyListener {
     /// Listen for notify messages on all local network interfaces.
     pub fn listen() -> SSDPResult<SSDPReceiver<NotifyMessage>> {
+        NotifyListener::listen_on_port(message::UPNP_MULTICAST_PORT)
+    }
+
+    /// Listen for notify messages on a custom port on all local network interfaces.
+    pub fn listen_on_port(port: u16) -> SSDPResult<SSDPReceiver<NotifyMessage>> {
         // Generate a list of reused sockets on the standard multicast address.
-        let mut reuse_sockets = try!(message::map_local_ipv4(|&addr| {
-            net::bind_reuse((addr, message::UPNP_MULTICAST_PORT))
+        let reuse_sockets = try!(message::map_local(|&addr| match addr {
+            SocketAddr::V4(_) => {
+                let mcast_ip: IpAddr = FromStr::from_str(message::UPNP_MULTICAST_IPV4_ADDR)
+                                           .unwrap();
+                let s = try!(net::bind_reuse((mcast_ip, port)));
+                debug!("Joining ipv4 multicast {} at iface: {}", mcast_ip, addr);
+                try!(net::join_multicast(&s, &addr, &mcast_ip));
+                Ok(s)
+            }
+            SocketAddr::V6(n) => {
+                let mcast_ip: Ipv6Addr =
+                    FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR).unwrap();
+                let mut x = n.clone();
+                x.set_ip(mcast_ip);
+                x.set_port(port);
+                let s = try!(net::bind_reuse(x));
+                debug!("Joining ipv6 multicast {} at iface: {}", mcast_ip, addr);
+                try!(net::join_multicast(&s, &addr, &IpAddr::V6(mcast_ip)));
+                Ok(s)
+            }
         }));
-
-        let mcast_addr = try!(IpAddr::from_str(message::UPNP_MULTICAST_ADDR)
-            .map_err(|_| MsgError::new("Could Not Parse UPNP_MULTICAST_ADDR") ));
-
-        // Subscribe To Multicast On All Of Them
-        for sock in reuse_sockets.iter_mut() {
-            let iface_addr = SocketIp::ip(&try!(sock.local_addr()));
-
-            try!(net::join_multicast(sock, &iface_addr, &mcast_addr));
-        }
 
         Ok(try!(SSDPReceiver::new(reuse_sockets, None)))
     }
@@ -103,8 +139,8 @@ impl NotifyListener {
 
 #[cfg(test)]
 mod tests {
-    use super::{NotifyMessage};
-    use receiver::{FromRawSSDP};
+    use super::NotifyMessage;
+    use receiver::FromRawSSDP;
 
     #[test]
     fn positive_notify_message_type() {

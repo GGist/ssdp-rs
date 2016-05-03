@@ -7,10 +7,10 @@ use {SSDPResult, SSDPError};
 
 const MX_HEADER_NAME: &'static str = "MX";
 
-/// Minimum wait time specified in the UPnP 1.0 standard.
+/// Minimum wait time specified in the `UPnP` 1.0 standard.
 pub const MX_HEADER_MIN: u8 = 1;
 
-/// Maximum wait time specified in the UPnP 1.0 standard.
+/// Maximum wait time specified in the `UPnP` 1.0 standard.
 pub const MX_HEADER_MAX: u8 = 120;
 
 /// Represents a header used to specify the maximum time that devices should wait

@@ -3,13 +3,13 @@ use std::net::{UdpSocket, SocketAddr};
 use std::time::Duration;
 use hyper::net::NetworkStream;
 
-/// A type that wraps a UdpSocket and a SocketAddr and implements the NetworkStream
+/// A type that wraps a `UdpSocket` and a `SocketAddr` and implements the `NetworkStream`
 /// trait.
 ///
 /// Note that reading from this stream will generate an error, this object is
 /// used for intercepting Http messages from Hyper and sending them out via Udp.
 /// The response(s) from client(s) are to be handled by some other object that
-/// has a cloned handle to our internal UdpSocket handle.
+/// has a cloned handle to our internal `UdpSocket` handle.
 pub struct UdpSender {
     udp: UdpSocket,
     dst: SocketAddr,
