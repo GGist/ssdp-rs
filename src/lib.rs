@@ -12,6 +12,8 @@ extern crate libc;
 #[macro_use]
 extern crate log;
 extern crate time;
+#[cfg(not(windows))]
+extern crate ifaces;
 
 mod error;
 mod field;
