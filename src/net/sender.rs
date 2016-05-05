@@ -12,13 +12,14 @@ use hyper::net::{NetworkStream};
 /// has a cloned handle to our internal UdpSocket handle.
 pub struct UdpSender {
     udp: UdpSocket,
-    dst: SocketAddr
+    dst: SocketAddr,
+    buf: Vec<u8>
 }
 
 impl UdpSender {
     /// Creates a new UdpSender object.
     pub fn new(udp: UdpSocket, dst: SocketAddr) -> UdpSender {
-        UdpSender{ udp: udp, dst: dst }
+        UdpSender{ udp: udp, dst: dst, buf: Vec::new() }
     }
 }
 
@@ -57,13 +58,19 @@ impl Write for UdpSender {
                 *dst = *src;
             }
         }
-        debug!("Sent HTTP Request:\n{}", String::from_utf8_lossy(&buffer[..]));
 
-        self.udp.send_to(&buffer[..], self.dst)
+        self.buf.append(&mut buffer);
+        
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        Ok(())
+        debug!("Sent HTTP Request:\n{}", String::from_utf8_lossy(&self.buf[..]));
+        
+        let result = self.udp.send_to(&self.buf[..], self.dst);
+        self.buf.clear();
+        
+        result.map(|_| ())
     }
 }
 
@@ -71,7 +78,7 @@ impl Clone for UdpSender {
     fn clone(&self) -> UdpSender {
         let udp_clone = self.udp.try_clone().unwrap();
 
-        UdpSender{ udp: udp_clone, dst: self.dst }
+        UdpSender{ udp: udp_clone, dst: self.dst, buf: self.buf.clone() }
     }
 
     fn clone_from(&mut self, source: &UdpSender) {
