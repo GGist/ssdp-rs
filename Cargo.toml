@@ -1,6 +1,6 @@
 [package]
 name = "ssdp"
-version = "0.1.5"
+version = "0.1.6"
 description = "An asynchronous abstraction for discovering devices and services on a network."
 
 authors = ["GGist <amiller4421@gmail.com>"]
