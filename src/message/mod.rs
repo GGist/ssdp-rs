@@ -1,7 +1,9 @@
 //! Messaging primitives for discovering devices and services.
 
 use std::io::{self};
-use std::net::{self, SocketAddr, Ipv4Addr};
+#[cfg(windows)]
+use ::std::net;
+use ::std::net::{SocketAddr, Ipv4Addr};
 
 use net::connector::{UdpConnector};
 
@@ -11,6 +13,9 @@ mod ssdp;
 
 pub use message::search::{SearchRequest, SearchResponse};
 pub use message::notify::{NotifyMessage, NotifyListener};
+
+#[cfg(not(windows))]
+use ::ifaces;
 
 /// Multicast Socket Information
 const UPNP_MULTICAST_ADDR: &'static str = "239.255.255.250";
@@ -38,6 +43,7 @@ fn all_local_connectors(multicast_ttl: Option<i32>) -> io::Result<Vec<UdpConnect
 /// Generate a list of some object R constructed from all local Ipv4Addr objects.
 ///
 /// If any of the SocketAddrs fail to resolve, this function will not return an error.
+#[cfg(windows)]
 fn map_local_ipv4<F, R>(mut f: F) -> io::Result<Vec<R>>
     where F: FnMut(&Ipv4Addr) -> io::Result<R> {
     let host_iter = try!(net::lookup_host(""));
@@ -45,13 +51,41 @@ fn map_local_ipv4<F, R>(mut f: F) -> io::Result<Vec<R>>
         (_, Some(n)) => Vec::with_capacity(n),
         (_, None)    => Vec::new()
     };
-    
+
     for host in host_iter.filter_map(|host| host.ok()) {
         match host {
             SocketAddr::V4(n) => obj_list.push(try!(f(n.ip()))),
             _ => ()
         }
     }
-    
+
+    Ok(obj_list)
+}
+
+/// Generate a list of some object R constructed from all local Ipv4Addr objects.
+///
+/// If any of the SocketAddrs fail to resolve, this function will not return an error.
+#[cfg(not(windows))]
+fn map_local_ipv4<F, R>(mut f: F) -> io::Result<Vec<R>>
+    where F: FnMut(&Ipv4Addr) -> io::Result<R>
+{
+    let iface_iter = try!(ifaces::Interface::get_all()).into_iter();
+
+    let mut obj_list = match iface_iter.size_hint() {
+        (_, Some(n)) => Vec::with_capacity(n),
+        (_, None)    => Vec::new()
+    };
+
+    for iface in iface_iter.filter(|iface| iface.kind == ifaces::Kind::Ipv4) {
+        match iface.addr {
+            Some(SocketAddr::V4(n)) => {
+                if !n.ip().is_loopback() {
+                    obj_list.push(try!(f(n.ip())))
+                }
+            },
+            _ => ()
+        }
+    }
+
     Ok(obj_list)
 }
