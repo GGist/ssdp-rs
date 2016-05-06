@@ -15,6 +15,21 @@ pub mod connector;
 pub mod packet;
 pub mod sender;
 
+pub enum IpVersionMode {
+    V4Only,
+    V6Only,
+    Any,
+}
+
+impl IpVersionMode {
+    pub fn from_addr<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
+        match try!(addr_from_trait(addr)) {
+            SocketAddr::V4(_) => Ok(IpVersionMode::V4Only),
+            SocketAddr::V6(_) => Ok(IpVersionMode::V6Only),
+        }
+    }
+}
+
 /// Accept a type implementing `ToSocketAddrs` and tries to extract the first address.
 pub fn addr_from_trait<A: ToSocketAddrs>(addr: A) -> io::Result<SocketAddr> {
     let mut sock_iter = try!(addr.to_socket_addrs());
@@ -39,9 +54,10 @@ pub fn bind_reuse<A: ToSocketAddrs>(local_addr: A) -> io::Result<UdpSocket> {
 }
 
 #[cfg(windows)]
-fn reuse_port(builder: UdpBuilder) -> io::Result<()> {
+fn reuse_port(builder: &UdpBuilder) -> io::Result<()> {
     // Allow wildcards + specific to not overlap
-    builder.reuse_address(true)
+    try!(builder.reuse_address(true));
+    Ok(())
 }
 
 #[cfg(not(windows))]
@@ -58,7 +74,10 @@ pub fn join_multicast(sock: &UdpSocket, iface: &SocketAddr, mcast_addr: &IpAddr)
     match (iface, mcast_addr) {
         (&SocketAddr::V4(ref i), &IpAddr::V4(ref m)) => sock.join_multicast_v4(m, i.ip()),
         (&SocketAddr::V6(ref i), &IpAddr::V6(ref m)) => sock.join_multicast_v6(m, i.scope_id()),
-        _ => Err(io::Error::new(ErrorKind::InvalidInput, "Multicast And Interface Addresses Are Not The Same Version")),
+        _ => {
+            Err(io::Error::new(ErrorKind::InvalidInput,
+                               "Multicast And Interface Addresses Are Not The Same Version"))
+        }
     }
 }
 
@@ -68,7 +87,10 @@ pub fn leave_multicast(sock: &UdpSocket, iface_addr: &SocketAddr, mcast_addr: &S
     match (iface_addr, mcast_addr) {
         (&SocketAddr::V4(ref i), &SocketAddr::V4(ref m)) => sock.leave_multicast_v4(m.ip(), i.ip()),
         (&SocketAddr::V6(ref i), &SocketAddr::V6(ref m)) => sock.leave_multicast_v6(m.ip(), i.scope_id()),
-        _ => Err(io::Error::new(ErrorKind::InvalidInput, "Multicast And Interface Addresses Are Not The Same Version")),
+        _ => {
+            Err(io::Error::new(ErrorKind::InvalidInput,
+                               "Multicast And Interface Addresses Are Not The Same Version"))
+        }
     }
 }
 

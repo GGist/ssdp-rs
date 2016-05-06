@@ -33,7 +33,7 @@ impl NotifyMessage {
     pub fn multicast_with_port(&mut self, port: u16) -> SSDPResult<()> {
         let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);
 
-        let mut connectors = try!(message::all_local_connectors(mcast_ttl));
+        let mut connectors = try!(message::all_local_connectors(mcast_ttl, net::IpVersionMode::Any));
 
         // Send On All Connectors
         for conn in &mut connectors {
@@ -113,23 +113,22 @@ impl NotifyListener {
         // Generate a list of reused sockets on the standard multicast address.
         let reuse_sockets = try!(message::map_local(|&addr| match addr {
             SocketAddr::V4(_) => {
-                let mcast_ip: IpAddr = FromStr::from_str(message::UPNP_MULTICAST_IPV4_ADDR)
-                                           .unwrap();
+                let mcast_ip: IpAddr = FromStr::from_str(message::UPNP_MULTICAST_IPV4_ADDR).unwrap();
                 let s = try!(net::bind_reuse((mcast_ip, port)));
                 debug!("Joining ipv4 multicast {} at iface: {}", mcast_ip, addr);
                 try!(net::join_multicast(&s, &addr, &mcast_ip));
-                Ok(s)
+                Ok(Some(s))
             }
             SocketAddr::V6(n) => {
-                let mcast_ip: Ipv6Addr =
-                    FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR).unwrap();
+                let mcast_ip: Ipv6Addr = FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR)
+                                             .unwrap();
                 let mut x = n.clone();
                 x.set_ip(mcast_ip);
                 x.set_port(port);
                 let s = try!(net::bind_reuse(x));
                 debug!("Joining ipv6 multicast {} at iface: {}", mcast_ip, addr);
                 try!(net::join_multicast(&s, &addr, &IpAddr::V6(mcast_ip)));
-                Ok(s)
+                Ok(Some(s))
             }
         }));
 

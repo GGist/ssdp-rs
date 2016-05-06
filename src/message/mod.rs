@@ -6,12 +6,13 @@ use std::net;
 use std::net::SocketAddr;
 
 use net::connector::UdpConnector;
+use net::IpVersionMode;
 
 mod notify;
 mod search;
 mod ssdp;
 
-pub use message::search::{SearchRequest, SearchResponse};
+pub use message::search::{SearchRequest, SearchResponse, SearchListener};
 pub use message::notify::{NotifyMessage, NotifyListener};
 
 #[cfg(not(windows))]
@@ -37,16 +38,21 @@ pub enum MessageType {
 }
 
 /// Generate `UdpConnector` objects for all local `IPv4` interfaces.
-fn all_local_connectors(multicast_ttl: Option<u32>) -> io::Result<Vec<UdpConnector>> {
+fn all_local_connectors(multicast_ttl: Option<u32>, filter: IpVersionMode) -> io::Result<Vec<UdpConnector>> {
     trace!("Fetching all local connectors");
-    map_local(|&addr| match addr {
-        SocketAddr::V4(n) => UdpConnector::new((*n.ip(), 0), multicast_ttl),
-        SocketAddr::V6(n) => UdpConnector::new(n, multicast_ttl),
+    map_local(|&addr| match (&filter, addr) {
+        (&IpVersionMode::V4Only, SocketAddr::V4(n)) |
+        (&IpVersionMode::Any, SocketAddr::V4(n)) => {
+            Ok(Some(try!(UdpConnector::new((*n.ip(), 0), multicast_ttl))))
+        }
+        (&IpVersionMode::V6Only, SocketAddr::V6(n)) |
+        (&IpVersionMode::Any, SocketAddr::V6(n)) => Ok(Some(try!(UdpConnector::new(n, multicast_ttl)))),
+        _ => Ok(None),
     })
 }
 
 fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
-    where F: FnMut(&SocketAddr) -> io::Result<R>
+    where F: FnMut(&SocketAddr) -> io::Result<Option<R>>
 {
     let addrs_iter = try!(get_local_addrs());
 
@@ -57,12 +63,16 @@ fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
         match addr {
             SocketAddr::V4(n) => {
                 if !n.ip().is_loopback() {
-                    obj_list.push(try!(f(&addr)));
+                    if let Some(x) = try!(f(&addr)) {
+                        obj_list.push(x);
+                    }
                 }
             }
             SocketAddr::V6(n) => {
                 if !n.ip().is_loopback() {
-                    obj_list.push(try!(f(&addr)));
+                    if let Some(x) = try!(f(&addr)) {
+                        obj_list.push(x);
+                    }
                 }
             }
         }

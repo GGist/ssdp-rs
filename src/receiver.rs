@@ -107,9 +107,7 @@ fn clone_addrs(socks: &[UdpSocket]) -> io::Result<Vec<SocketAddr>> {
 
 /// Spawn a number of receiver threads that will receive packets, forward the
 /// bytes on to T, and send successfully constructed objects through the sender.
-fn spawn_receivers<T>(socks: Vec<UdpSocket>,
-                      kill_flag: Arc<AtomicBool>,
-                      sender: Sender<(T, SocketAddr)>)
+fn spawn_receivers<T>(socks: Vec<UdpSocket>, kill_flag: Arc<AtomicBool>, sender: Sender<(T, SocketAddr)>)
     where T: FromRawSSDP + Send + 'static
 {
     for sock in socks {
@@ -126,10 +124,7 @@ fn spawn_receivers<T>(socks: Vec<UdpSocket>,
 /// Spawn a timer if a duration was passed in and link the timer with the given sockets.
 ///
 /// If some of the sockets or socket addresses could not be cloned, an error is returned.
-fn maybe_spawn_timer(time: Option<Duration>,
-                     kill: Arc<AtomicBool>,
-                     socks: &[UdpSocket])
-                     -> io::Result<()> {
+fn maybe_spawn_timer(time: Option<Duration>, kill: Arc<AtomicBool>, socks: &[UdpSocket]) -> io::Result<()> {
     if let Some(n) = time {
         let timer_socks = try!(clone_socks(socks));
         let timer_addrs = try!(clone_addrs(socks));
@@ -204,7 +199,8 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
                 continue;
             }
         };
-        trace!("Received packet");
+
+        trace!("Received packet with {} bytes", msg_bytes.len());
 
         // Check If We Were Unblocked Intentionally
         if kill.load(Ordering::Acquire) {
@@ -230,10 +226,7 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
 /// blocking on them so that they can see that the kill flag has been activated.
 ///
 /// This should be run in it's own thread.
-fn kill_timer(time: Duration,
-              kill: Arc<AtomicBool>,
-              socks: Vec<UdpSocket>,
-              addrs: Vec<SocketAddr>) {
+fn kill_timer(time: Duration, kill: Arc<AtomicBool>, socks: Vec<UdpSocket>, addrs: Vec<SocketAddr>) {
     thread::sleep(time);
 
     syncronize_kill(&*kill, &socks[..], &addrs[..]);

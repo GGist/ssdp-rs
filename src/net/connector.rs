@@ -42,20 +42,24 @@ impl UdpConnector {
 impl NetworkConnector for UdpConnector {
     type Stream = UdpSender;
 
-    fn connect(&self,
-               host: &str,
-               port: u16,
-               _: &str)
-               -> error::Result<<Self as NetworkConnector>::Stream> {
+    fn connect(&self, host: &str, port: u16, _: &str) -> error::Result<<Self as NetworkConnector>::Stream> {
         let udp_sock = try!(self.0.try_clone());
         let sock_addr = match try!(self.local_addr()) {
             SocketAddr::V4(_) => {
-                SocketAddr::V4(SocketAddrV4::new(FromStr::from_str(host).unwrap(), port))
+                SocketAddr::V4(SocketAddrV4::new(try!(FromStr::from_str(host).map_err(|err| {
+                                                     io::Error::new(io::ErrorKind::InvalidInput, err)
+                                                 })),
+                                                 port))
             }
             SocketAddr::V6(n) => {
-                let mut addr: SocketAddrV6 = FromStr::from_str(format!("{}:{}", host, port)
-                                                                   .as_str())
-                                                 .unwrap();
+                let mut addr: SocketAddrV6 = if host.find('[') == Some(0) &&
+                                                host.rfind(']') == Some(host.len() - 1) {
+                    try!(FromStr::from_str(format!("{}:{}", host, port).as_str())
+                             .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err)))
+                } else {
+                    try!(FromStr::from_str(format!("[{}]:{}", host, port).as_str())
+                             .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err)))
+                };
                 addr.set_flowinfo(n.flowinfo());
                 addr.set_scope_id(n.scope_id());
                 SocketAddr::V6(addr)

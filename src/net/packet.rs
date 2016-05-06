@@ -5,7 +5,7 @@ use std::fmt;
 /// Maximum length for packets received on a `PacketReceiver`.
 pub const MAX_PCKT_LEN: usize = 600;
 
-/// A `PacketReceiver` that abstract over a network socket and reads full packets
+/// A `PacketReceiver` that abstracts over a network socket and reads full packets
 /// from the connection. Packets received from this connection are assumed to
 /// be no larger than what the typical MTU would be on a standard router.
 ///
@@ -26,8 +26,7 @@ impl PacketReceiver {
 
         // Check For Something That SHOULD NEVER Occur.
         if size > pckt_buf.len() {
-            Err(Error::new(ErrorKind::Other,
-                           "UdpSocket Reported Receive Length Greater Than Buffer"))
+            Err(Error::new(ErrorKind::Other, "UdpSocket Reported Receive Length Greater Than Buffer"))
         } else {
             unsafe { pckt_buf.set_len(size) };
 

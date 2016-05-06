@@ -136,8 +136,7 @@ mod tests {
     fn positive_unknown() {
         let unknown_pair = FieldMap::new(&b"some_key\x80:some_value_\x80"[..]).unwrap();
 
-        assert_eq!(unknown_pair,
-                   FieldMap::Unknown(b"some_key\x80".to_vec(), b"some_value_\x80".to_vec()));
+        assert_eq!(unknown_pair, FieldMap::Unknown(b"some_key\x80".to_vec(), b"some_value_\x80".to_vec()));
     }
 
     #[test]

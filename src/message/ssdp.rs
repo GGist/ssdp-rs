@@ -86,10 +86,7 @@ impl SSDPMessage {
 
 #[allow(unused)]
 /// Send a request using the connector with the supplied method and headers.
-fn send_request<C, S>(method: &str,
-                      headers: &Headers,
-                      connector: &mut C,
-                      dst_addr: SocketAddr)
+fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_addr: SocketAddr)
                       -> SSDPResult<()>
     where C: NetworkConnector<Stream = S>,
           S: Into<Box<NetworkStream + Send>>
