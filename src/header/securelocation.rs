@@ -7,7 +7,7 @@ const SECURELOCATION_HEADER_NAME: &'static str = "SECURELOCATION.UPNP.ORG";
 
 /// Represents a header used to specify a secure url for a device's DDD.
 ///
-/// Can be used instead of the Location header field.
+/// Can be used instead of the `Location` header field.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SecureLocation(pub String);
 
