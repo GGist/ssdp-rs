@@ -1,11 +1,11 @@
 //! Messaging primitives for discovering devices and services.
 
-use std::io::{self};
+use std::io;
 #[cfg(windows)]
-use ::std::net;
-use ::std::net::{SocketAddr, Ipv4Addr};
+use std::net;
+use std::net::{SocketAddr, Ipv4Addr};
 
-use net::connector::{UdpConnector};
+use net::connector::UdpConnector;
 
 mod notify;
 mod search;
@@ -15,11 +15,11 @@ pub use message::search::{SearchRequest, SearchResponse};
 pub use message::notify::{NotifyMessage, NotifyListener};
 
 #[cfg(not(windows))]
-use ::ifaces;
+use ifaces;
 
 /// Multicast Socket Information
 const UPNP_MULTICAST_ADDR: &'static str = "239.255.255.250";
-const UPNP_MULTICAST_PORT: u16          = 1900;
+pub const UPNP_MULTICAST_PORT: u16 = 1900;
 
 /// Default TTL For Multicast
 const UPNP_MULTICAST_TTL: i32 = 2;
@@ -32,7 +32,7 @@ pub enum MessageType {
     /// A search message.
     Search,
     /// A response to a search message.
-    Response
+    Response,
 }
 
 /// Generate UdpConnector objects for all local IPv4 interfaces.
@@ -45,17 +45,18 @@ fn all_local_connectors(multicast_ttl: Option<i32>) -> io::Result<Vec<UdpConnect
 /// If any of the SocketAddrs fail to resolve, this function will not return an error.
 #[cfg(windows)]
 fn map_local_ipv4<F, R>(mut f: F) -> io::Result<Vec<R>>
-    where F: FnMut(&Ipv4Addr) -> io::Result<R> {
+    where F: FnMut(&Ipv4Addr) -> io::Result<R>
+{
     let host_iter = try!(net::lookup_host(""));
     let mut obj_list = match host_iter.size_hint() {
         (_, Some(n)) => Vec::with_capacity(n),
-        (_, None)    => Vec::new()
+        (_, None) => Vec::new(),
     };
 
     for host in host_iter.filter_map(|host| host.ok()) {
         match host {
             SocketAddr::V4(n) => obj_list.push(try!(f(n.ip()))),
-            _ => ()
+            _ => (),
         }
     }
 
@@ -73,7 +74,7 @@ fn map_local_ipv4<F, R>(mut f: F) -> io::Result<Vec<R>>
 
     let mut obj_list = match iface_iter.size_hint() {
         (_, Some(n)) => Vec::with_capacity(n),
-        (_, None)    => Vec::new()
+        (_, None) => Vec::new(),
     };
 
     for iface in iface_iter.filter(|iface| iface.kind == ifaces::Kind::Ipv4) {
@@ -82,8 +83,8 @@ fn map_local_ipv4<F, R>(mut f: F) -> io::Result<Vec<R>>
                 if !n.ip().is_loopback() {
                     obj_list.push(try!(f(n.ip())))
                 }
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
 
