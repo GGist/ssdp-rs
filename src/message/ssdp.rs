@@ -19,10 +19,10 @@ use hyper::version::HttpVersion;
 use {SSDPResult, SSDPError};
 use header::{HeaderRef, HeaderMut};
 use message::MessageType;
-use net::{self, SocketIp};
+use net;
 use receiver::FromRawSSDP;
 
-/// Only Valid SearchResponse Code
+/// Only Valid `SearchResponse` Code
 const VALID_RESPONSE_CODE: u16 = 200;
 
 /// Appended To Destination Socket Addresses For URLs
@@ -61,12 +61,19 @@ impl SSDPMessage {
               S: Into<Box<NetworkStream + Send>>
     {
         let dst_sock_addr = try!(net::addr_from_trait(dst_addr));
-
         match self.method {
-            MessageType::Notify => send_request(NOTIFY_METHOD, &self.headers, connector, dst_sock_addr),
-            MessageType::Search => send_request(SEARCH_METHOD, &self.headers, connector, dst_sock_addr),
+            MessageType::Notify => {
+                trace!("Notify to: {:?}", dst_sock_addr);
+                send_request(NOTIFY_METHOD, &self.headers, connector, dst_sock_addr)
+            }
+            MessageType::Search => {
+                trace!("Sending search request...");
+                send_request(SEARCH_METHOD, &self.headers, connector, dst_sock_addr)
+            }
             MessageType::Response => {
-                let dst_ip_string = SocketIp::ip(&dst_sock_addr).to_string();
+                trace!("Sending response to: {:?}", dst_sock_addr);
+                // This might need fixing for IPV6, passing down the IP loses the scope information
+                let dst_ip_string = dst_sock_addr.ip().to_string();
                 let dst_port = dst_sock_addr.port();
 
                 let net_stream = try!(connector.connect(&dst_ip_string[..], dst_port, "")).into();
@@ -79,24 +86,26 @@ impl SSDPMessage {
 
 #[allow(unused)]
 /// Send a request using the connector with the supplied method and headers.
-fn send_request<C, S>(method: &str,
-                      headers: &Headers,
-                      connector: &mut C,
-                      dst_addr: SocketAddr)
+fn send_request<C, S>(method: &str, headers: &Headers, connector: &mut C, dst_addr: SocketAddr)
                       -> SSDPResult<()>
     where C: NetworkConnector<Stream = S>,
           S: Into<Box<NetworkStream + Send>>
 {
+    trace!("Trying to parse url...");
     let url = try!(url_from_addr(dst_addr));
+    trace!("Url: {}", url);
 
     let mut request = try!(Request::with_connector(Method::Extension(method.to_owned()), url, connector));
 
+    trace!("Copying headers...");
     copy_headers(headers, request.headers_mut());
+    trace!("Setting length");
     request.headers_mut().set(ContentLength(0));
 
     // Send Will Always Fail Within The UdpConnector Which Is Intended So That
     // Hyper Does Not Block For A Response Since We Are Handling That Ourselves.
 
+    trace!("actual .send ...");
     try!(request.start()).send();
 
     Ok(())
@@ -190,7 +199,7 @@ impl FromRawSSDP for SSDPMessage {
     }
 }
 
-/// Logs a debug! message based on the value of the SSDPResult.
+/// Logs a debug! message based on the value of the `SSDPResult`.
 fn log_message_result(result: &SSDPResult<SSDPMessage>, message: &[u8]) {
     match *result {
         Ok(_) => debug!("Received Valid SSDPMessage:\n{}", String::from_utf8_lossy(message)),
@@ -198,7 +207,7 @@ fn log_message_result(result: &SSDPResult<SSDPMessage>, message: &[u8]) {
     }
 }
 
-/// Attempts to construct an SSDPMessage from the given request pieces.
+/// Attempts to construct an `SSDPMessage` from the given request pieces.
 fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSDPMessage> {
     let headers = parts.headers;
 
@@ -224,13 +233,13 @@ fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSD
             }
         }
         (n, RequestUri::Star) => Err(SSDPError::InvalidMethod(n.to_string())),
-        (_, RequestUri::AbsolutePath(n)) => Err(SSDPError::InvalidUri(n)),
+        (_, RequestUri::AbsolutePath(n)) |
         (_, RequestUri::Authority(n)) => Err(SSDPError::InvalidUri(n)),
         (_, RequestUri::AbsoluteUri(n)) => Err(SSDPError::InvalidUri(n.into_string())),
     }
 }
 
-/// Attempts to construct an SSDPMessage from the given response pieces.
+/// Attempts to construct an `SSDPMessage` from the given response pieces.
 fn message_from_response(parts: Incoming<RawStatus>) -> SSDPResult<SSDPMessage> {
     let RawStatus(status_code, _) = parts.subject;
     let headers = parts.headers;
@@ -279,7 +288,6 @@ fn validate_response_code(code: u16) -> SSDPResult<()> {
 mod mocks {
     use std::cell::RefCell;
     use std::io::{self, Read, Write, ErrorKind};
-    use std::marker::Reflect;
     use std::net::SocketAddr;
     use std::time::Duration;
     use std::sync::mpsc::{self, Sender, Receiver};

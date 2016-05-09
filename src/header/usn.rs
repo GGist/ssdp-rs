@@ -13,7 +13,7 @@ const FIELD_PAIR_SEPARATOR: &'static str = "::";
 
 /// Represents a header which specifies a unique service name.
 ///
-/// Field value can hold up to two FieldMaps.
+/// Field value can hold up to two `FieldMap`'s.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct USN(pub FieldMap, pub Option<FieldMap>);
 
@@ -50,12 +50,9 @@ impl HeaderFormat for USN {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
         try!(Display::fmt(&self.0, fmt));
 
-        match self.1 {
-            Some(ref n) => {
-                try!(fmt.write_fmt(format_args!("{}", FIELD_PAIR_SEPARATOR)));
-                try!(Display::fmt(n, fmt));
-            }
-            None => (),
+        if let Some(ref n) = self.1 {
+            try!(fmt.write_fmt(format_args!("{}", FIELD_PAIR_SEPARATOR)));
+            try!(Display::fmt(n, fmt));
         }
 
         Ok(())
@@ -74,7 +71,7 @@ fn partition_pairs<'a, I>(header_iter: I) -> Option<(Vec<u8>, Option<Vec<u8>>)>
     };
 
     // Seprate field into two vecs, store separators on end of first
-    let (mut first, second): (Vec<u8>, Vec<u8>) = header_iter.map(|&n| n).partition(|&n| {
+    let (mut first, second): (Vec<u8>, Vec<u8>) = header_iter.cloned().partition(|&n| {
         if second_partition {
             false
         } else {
@@ -87,13 +84,10 @@ fn partition_pairs<'a, I>(header_iter: I) -> Option<(Vec<u8>, Option<Vec<u8>>)>
 
     // Remove up to two separators from end of first
     for _ in 0..2 {
-        match first[..].last() {
-            Some(&n) => {
-                if n == field::PAIR_SEPARATOR as u8 {
-                    first.pop();
-                }
+        if let Some(&n) = first[..].last() {
+            if n == field::PAIR_SEPARATOR as u8 {
+                first.pop();
             }
-            _ => (),
         };
     }
 

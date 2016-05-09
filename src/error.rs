@@ -1,9 +1,9 @@
-use std::convert::{From};
-use std::error::{Error};
+use std::convert::From;
+use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::marker::{Reflect};
+use std::marker::Reflect;
 
-/// Result that can return a T or an SSDPError.
+/// Result that can return a T or an `SSDPError`.
 pub type SSDPResult<T> = Result<T, SSDPError>;
 
 /// Enumerates all errors that can occur when dealing with an SSDP message.
@@ -36,7 +36,7 @@ pub enum SSDPError {
     /// Header name with error message are supplied.
     InvalidHeader(&'static str, &'static str),
     /// Some other error occurred.
-    Other(Box<Error>)
+    Other(Box<Error>),
 }
 
 impl Display for SSDPError {
@@ -44,35 +44,25 @@ impl Display for SSDPError {
         match *self {
             SSDPError::InvalidHttp(ref n) => {
                 let http_str = String::from_utf8_lossy(n);
-                
+
                 f.write_fmt(format_args!("Invalid Http: {}", http_str))
-            },
-            SSDPError::InvalidHttpVersion => {
-                f.write_str("Invalid Http Version")
-            },
-            SSDPError::ResponseCode(n) => {
-                f.write_fmt(format_args!("Response Code: {}", n))
-            },
-            SSDPError::InvalidMethod(ref n) => {
-                f.write_fmt(format_args!("Invalid Method: {}", n))
-            },
-            SSDPError::InvalidUri(ref n) => {
-                f.write_fmt(format_args!("Invalid URI: {}", n))
-            },
-            SSDPError::MissingHeader(n) => {
-                f.write_fmt(format_args!("Missing Header: {}", n))
-            },
+            }
+            SSDPError::InvalidHttpVersion => f.write_str("Invalid Http Version"),
+            SSDPError::ResponseCode(n) => f.write_fmt(format_args!("Response Code: {}", n)),
+            SSDPError::InvalidMethod(ref n) => f.write_fmt(format_args!("Invalid Method: {}", n)),
+            SSDPError::InvalidUri(ref n) => f.write_fmt(format_args!("Invalid URI: {}", n)),
+            SSDPError::MissingHeader(n) => f.write_fmt(format_args!("Missing Header: {}", n)),
             SSDPError::InvalidHeader(name, value) => {
                 f.write_fmt(format_args!("Invalid Header: {}: {}", name, value))
-            },
-            SSDPError::Other(ref n) => {
-                f.write_fmt(format_args!("Other: {}", n.description()))
             }
+            SSDPError::Other(ref n) => f.write_fmt(format_args!("Other: {}", n.description())),
         }
     }
 }
 
-impl<T> From<T> for SSDPError where T: Error + 'static {
+impl<T> From<T> for SSDPError
+    where T: Error + 'static
+{
     fn from(err: T) -> SSDPError {
         SSDPError::Other(Box::new(err) as Box<Error>)
     }
@@ -81,16 +71,16 @@ impl<T> From<T> for SSDPError where T: Error + 'static {
 /// Basic type implementing the Error trait.
 #[derive(Debug)]
 pub struct MsgError {
-    desc: &'static str
+    desc: &'static str,
 }
 
 impl MsgError {
     pub fn new(desc: &'static str) -> MsgError {
-        MsgError{ desc: desc }
+        MsgError { desc: desc }
     }
 }
 
-impl Reflect for MsgError { }
+impl Reflect for MsgError {}
 
 impl Error for MsgError {
     fn description(&self) -> &str {
@@ -106,21 +96,21 @@ impl Display for MsgError {
 
 #[cfg(test)]
 mod tests {
-    use std::error::{Error};
+    use std::error::Error;
 
-    use super::{MsgError};
+    use super::MsgError;
 
     #[test]
     fn positive_msg_error_display() {
         let error = MsgError::new("Something Happened");
-        
+
         assert_eq!(&error.to_string()[..], "Something Happened");
     }
-    
+
     #[test]
     fn positive_msg_error_description() {
         let error = MsgError::new("Something Happened");
-        
+
         assert_eq!(error.description(), "Something Happened");
     }
 }

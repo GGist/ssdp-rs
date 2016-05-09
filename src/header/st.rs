@@ -29,7 +29,7 @@ impl Header for ST {
         if &raw[0][..] == ST_ALL_VALUE.as_bytes() {
             Ok(ST::All)
         } else {
-            FieldMap::new(&raw[0][..]).map(|x| ST::Target(x)).ok_or(Error::Header)
+            FieldMap::new(&raw[0][..]).map(ST::Target).ok_or(Error::Header)
         }
     }
 }
