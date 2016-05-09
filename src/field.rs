@@ -5,6 +5,7 @@
 
 use std::fmt::{Display, Error, Formatter};
 use std::result::Result;
+use std::borrow::Cow;
 
 /// Separator character for a `FieldMap` and it's value.
 pub const PAIR_SEPARATOR: char = ':';
@@ -20,13 +21,13 @@ const URN_PREFIX: &'static str = "urn";
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FieldMap {
     /// The "upnp" key with its associated value.
-    UPnP(Vec<u8>),
+    UPnP(String),
     /// The "uuid" key with its associated value.
-    UUID(Vec<u8>),
+    UUID(String),
     /// The "urn" key with its associated value.
-    URN(Vec<u8>),
+    URN(String),
     /// An undefined key, the key and it's value are returned.
-    Unknown(Vec<u8>, Vec<u8>),
+    Unknown(String, String),
 }
 
 impl FieldMap {
@@ -34,7 +35,15 @@ impl FieldMap {
     /// separated by a colon and neither of which are empty.
     ///
     /// Separation will occur at the first colon encountered.
-    pub fn new(field: &[u8]) -> Option<FieldMap> {
+    pub fn new<'a, S: Into<Cow<'a, str>>>(value: S) -> Option<Self> {
+        FieldMap::parse_bytes(value.into().as_bytes())
+    }
+
+    /// Breaks a field up into a single key and single value which are
+    /// separated by a colon and neither of which are empty.
+    ///
+    /// Separation will occur at the first colon encountered.
+    pub fn parse_bytes(field: &[u8]) -> Option<Self> {
         let split_index = match field.iter().position(|&b| b == PAIR_SEPARATOR as u8) {
             Some(n) => n,
             None => return None,
@@ -49,15 +58,34 @@ impl FieldMap {
             return None;
         }
 
-        if matches_uuid_key(key) {
-            Some(FieldMap::UUID(value.to_vec()))
-        } else if matches_urn_key(key) {
-            Some(FieldMap::URN(value.to_vec()))
-        } else if matches_upnp_key(key) {
-            Some(FieldMap::UPnP(value.to_vec()))
+        let key = String::from_utf8_lossy(key);
+        let value = String::from_utf8_lossy(value).into_owned();
+
+        if matches_uuid_key(key.as_ref()) {
+            Some(FieldMap::UUID(value))
+        } else if matches_urn_key(key.as_ref()) {
+            Some(FieldMap::URN(value))
+        } else if matches_upnp_key(key.as_ref()) {
+            Some(FieldMap::UPnP(value))
         } else {
-            Some(FieldMap::Unknown(key.to_vec(), value.to_vec()))
+            Some(FieldMap::Unknown(key.into_owned(), value))
         }
+    }
+
+    pub fn upnp<'a, S: Into<Cow<'a, str>>>(value: S) -> Self {
+        FieldMap::UPnP(value.into().into_owned())
+    }
+
+    pub fn uuid<'a, S: Into<Cow<'a, str>>>(value: S) -> Self {
+        FieldMap::UUID(value.into().into_owned())
+    }
+
+    pub fn urn<'a, S: Into<Cow<'a, str>>>(value: S) -> Self {
+        FieldMap::URN(value.into().into_owned())
+    }
+
+    pub fn unknown<'a, S: Into<Cow<'a, str>>, S2: Into<Cow<'a, str>>>(key: S, value: S2) -> Self {
+        FieldMap::Unknown(key.into().into_owned(), value.into().into_owned())
     }
 }
 
@@ -77,34 +105,29 @@ impl Display for FieldMap {
                 v
             }
             FieldMap::Unknown(ref k, ref v) => {
-                let key = String::from_utf8_lossy(k);
-                try!(Display::fmt(&key, f));
-
+                try!(Display::fmt(k, f));
                 v
             }
         };
         try!(f.write_fmt(format_args!("{}", PAIR_SEPARATOR)));
-
-        let cow_value = String::from_utf8_lossy(value);
-        try!(Display::fmt(&cow_value, f));
-
+        try!(Display::fmt(value, f));
         Ok(())
     }
 }
 
 /// Returns the header field value if the key matches the uuid key, else returns None.
-fn matches_uuid_key(key: &[u8]) -> bool {
-    UUID_PREFIX.as_bytes() == key
+fn matches_uuid_key(key: &str) -> bool {
+    UUID_PREFIX == key
 }
 
 /// Returns the header field value if the key matches the urn key, else returns None.
-fn matches_urn_key(key: &[u8]) -> bool {
-    URN_PREFIX.as_bytes() == key
+fn matches_urn_key(key: &str) -> bool {
+    URN_PREFIX == key
 }
 
 /// Returns the header field value if the key matches the upnp key, else returns None.
-fn matches_upnp_key(key: &[u8]) -> bool {
-    UPNP_PREFIX.as_bytes() == key
+fn matches_upnp_key(key: &str) -> bool {
+    UPNP_PREFIX == key
 }
 
 #[cfg(test)]
@@ -112,36 +135,46 @@ mod tests {
     use super::FieldMap;
 
     #[test]
-    fn positive_upnp() {
-        let upnp_pair = FieldMap::new(&b"upnp:some_value_\x80"[..]).unwrap();
+    fn positive_non_utf8() {
+        let uuid_pair = FieldMap::parse_bytes(&b"uuid:some_value_\x80"[..]).unwrap();
+        assert_eq!(uuid_pair, FieldMap::uuid(String::from_utf8_lossy(&b"some_value_\x80".to_vec())));
+    }
 
-        assert_eq!(upnp_pair, FieldMap::UPnP(b"some_value_\x80".to_vec()));
+    #[test]
+    fn positive_unknown_non_utf8() {
+        let unknown_pair = FieldMap::parse_bytes(&b"some_key\x80:some_value_\x80"[..]).unwrap();
+        assert_eq!(unknown_pair,
+                   FieldMap::unknown(String::from_utf8_lossy(&b"some_key\x80".to_vec()),
+                                     String::from_utf8_lossy(&b"some_value_\x80".to_vec())));
+    }
+
+    #[test]
+    fn positive_upnp() {
+        let upnp_pair = FieldMap::new("upnp:some_value").unwrap();
+        assert_eq!(upnp_pair, FieldMap::upnp("some_value"));
     }
 
     #[test]
     fn positive_uuid() {
-        let uuid_pair = FieldMap::new(&b"uuid:some_value_\x80"[..]).unwrap();
-
-        assert_eq!(uuid_pair, FieldMap::UUID(b"some_value_\x80".to_vec()));
+        let uuid_pair = FieldMap::new("uuid:some_value").unwrap();
+        assert_eq!(uuid_pair, FieldMap::uuid("some_value"));
     }
 
     #[test]
     fn positive_urn() {
-        let urn_pair = FieldMap::new(&b"urn:some_value_\x80"[..]).unwrap();
-
-        assert_eq!(urn_pair, FieldMap::URN(b"some_value_\x80".to_vec()));
+        let urn_pair = FieldMap::new("urn:some_value").unwrap();
+        assert_eq!(urn_pair, FieldMap::urn("some_value"));
     }
 
     #[test]
     fn positive_unknown() {
-        let unknown_pair = FieldMap::new(&b"some_key\x80:some_value_\x80"[..]).unwrap();
-
-        assert_eq!(unknown_pair, FieldMap::Unknown(b"some_key\x80".to_vec(), b"some_value_\x80".to_vec()));
+        let unknown_pair = FieldMap::new("some_key:some_value").unwrap();
+        assert_eq!(unknown_pair, FieldMap::unknown("some_key", "some_value"));
     }
 
     #[test]
     #[should_panic]
     fn negative_no_colon() {
-        FieldMap::new(&b"upnpsome_value_\x80"[..]).unwrap();
+        FieldMap::new("upnpsome_value").unwrap();
     }
 }

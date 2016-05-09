@@ -23,8 +23,8 @@ fn main() {
 
     // Set Some Headers
     message.set(NTS::ByeBye);
-    message.set(NT(FieldMap::UPnP(b"rootdevice".to_vec())));
-    message.set(USN(FieldMap::UUID(b"Hello, This Is Not A UUID!!!".to_vec()), None));
+    message.set(NT(FieldMap::upnp("rootdevice")));
+    message.set(USN(FieldMap::uuid("Hello, This Is Not A UUID!!!"), None));
 
     message.multicast().unwrap();
 
