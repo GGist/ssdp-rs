@@ -31,6 +31,9 @@ pub use self::securelocation::SecureLocation;
 pub use self::st::ST;
 pub use self::usn::USN;
 
+// Re-exports
+pub use hyper::header::{Location, Server, CacheControl, CacheDirective};
+
 /// Trait for viewing the contents of a header structure.
 pub trait HeaderRef: Debug {
     /// View a reference to a header field if it exists.

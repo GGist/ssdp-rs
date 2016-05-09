@@ -1,7 +1,7 @@
 use std::io::{self, ErrorKind, Read, Write};
 use std::net::{UdpSocket, SocketAddr};
 use std::time::Duration;
-use hyper::net::{NetworkStream};
+use hyper::net::NetworkStream;
 
 /// A type that wraps a UdpSocket and a SocketAddr and implements the NetworkStream
 /// trait.
@@ -13,13 +13,17 @@ use hyper::net::{NetworkStream};
 pub struct UdpSender {
     udp: UdpSocket,
     dst: SocketAddr,
-    buf: Vec<u8>
+    buf: Vec<u8>,
 }
 
 impl UdpSender {
     /// Creates a new UdpSender object.
     pub fn new(udp: UdpSocket, dst: SocketAddr) -> UdpSender {
-        UdpSender{ udp: udp, dst: dst, buf: Vec::new() }
+        UdpSender {
+            udp: udp,
+            dst: dst,
+            buf: Vec::new(),
+        }
     }
 }
 
@@ -34,8 +38,6 @@ impl NetworkStream for UdpSender {
         Ok(())
     }
 }
-
-unsafe impl Send for UdpSender { }
 
 impl Read for UdpSender {
     fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
@@ -60,16 +62,16 @@ impl Write for UdpSender {
         }
 
         self.buf.append(&mut buffer);
-        
+
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
         debug!("Sent HTTP Request:\n{}", String::from_utf8_lossy(&self.buf[..]));
-        
+
         let result = self.udp.send_to(&self.buf[..], self.dst);
         self.buf.clear();
-        
+
         result.map(|_| ())
     }
 }
@@ -78,7 +80,11 @@ impl Clone for UdpSender {
     fn clone(&self) -> UdpSender {
         let udp_clone = self.udp.try_clone().unwrap();
 
-        UdpSender{ udp: udp_clone, dst: self.dst, buf: self.buf.clone() }
+        UdpSender {
+            udp: udp_clone,
+            dst: self.dst,
+            buf: self.buf.clone(),
+        }
     }
 
     fn clone_from(&mut self, source: &UdpSender) {

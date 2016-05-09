@@ -15,27 +15,23 @@ pub const SEARCHPORT_MAX_VALUE: u16 = 65535;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SearchPort(pub u16);
 
-unsafe impl Sync for SearchPort { }
-
-unsafe impl Send for SearchPort { }
-
 impl Header for SearchPort {
     fn header_name() -> &'static str {
         SEARCHPORT_HEADER_NAME
     }
-    
+
     fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
         if raw.len() != 1 {
-            return Err(Error::Header)
+            return Err(Error::Header);
         }
-        
+
         let cow_str = String::from_utf8_lossy(&raw[0][..]);
-        
+
         let value = match u16::from_str_radix(&*cow_str, 10) {
             Ok(n) => n,
-            Err(_) => return Err(Error::Header)
+            Err(_) => return Err(Error::Header),
         };
-        
+
         if value <= SEARCHPORT_MAX_VALUE && value >= SEARCHPORT_MIN_VALUE {
             Ok(SearchPort(value))
         } else {
@@ -47,51 +43,51 @@ impl Header for SearchPort {
 impl HeaderFormat for SearchPort {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
         try!(fmt.write_fmt(format_args!("{}", self.0)));
-        
+
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::{Header};
-    
-    use super::{SearchPort};
-    
+    use hyper::header::Header;
+
+    use super::SearchPort;
+
     #[test]
     fn positive_searchport() {
         let searchport_header_value = &[b"50000"[..].to_vec()];
-        
+
         SearchPort::parse_header(searchport_header_value).unwrap();
     }
-    
+
     #[test]
     fn positive_lower_bound() {
         let searchport_header_value = &[b"49152"[..].to_vec()];
-        
+
         SearchPort::parse_header(searchport_header_value).unwrap();
     }
-    
+
     #[test]
     fn positive_upper_bound() {
         let searchport_header_value = &[b"65535"[..].to_vec()];
-        
+
         SearchPort::parse_header(searchport_header_value).unwrap();
     }
-    
+
     #[test]
     #[should_panic]
     fn negative_reserved() {
         let searchport_header_value = &[b"49151"[..].to_vec()];
-        
+
         SearchPort::parse_header(searchport_header_value).unwrap();
     }
-    
+
     #[test]
     #[should_panic]
     fn negative_nan() {
         let searchport_header_value = &[b"49151a"[..].to_vec()];
-        
+
         SearchPort::parse_header(searchport_header_value).unwrap();
     }
 }
