@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::net::{ToSocketAddrs, SocketAddr, SocketAddrV6, IpAddr, Ipv6Addr};
 use std::str::FromStr;
 use std::time::Duration;
+use std::io;
 
 use hyper::header::{Header, HeaderFormat};
 
@@ -27,7 +28,7 @@ pub struct SearchRequest {
 
 impl SearchRequest {
     /// Construct a new SearchRequest.
-    pub fn new() -> Self {
+    pub fn new() -> SearchRequest {
         SearchRequest { message: SSDPMessage::new(MessageType::Search) }
     }
 
@@ -157,7 +158,7 @@ pub struct SearchResponse {
 
 impl SearchResponse {
     /// Construct a new SearchResponse.
-    pub fn new() -> Self {
+    pub fn new() -> SearchResponse {
         SearchResponse { message: SSDPMessage::new(MessageType::Response) }
     }
 
@@ -170,9 +171,19 @@ impl SearchResponse {
         let mode = try!(net::IpVersionMode::from_addr(&dst_addr));
         let mut connectors = try!(message::all_local_connectors(None, mode));
 
+        let mut success_count = 0;
+        let mut error_count = 0;
         // Send On All Connectors
         for conn in &mut connectors {
-            try!(self.message.send(conn, &dst_addr));
+            // Some routing errors are expected, not all interfaces can find the target addresses
+            match self.message.send(conn, &dst_addr) {
+                Ok(_) => success_count += 1,
+                Err(_) => error_count += 1,
+            }
+        }
+
+        if success_count == 0 && error_count > 0 {
+            try!(Err(io::Error::last_os_error()));
         }
 
         Ok(())
