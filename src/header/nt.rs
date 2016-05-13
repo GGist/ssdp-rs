@@ -29,7 +29,7 @@ impl Header for NT {
             return Err(Error::Header);
         }
 
-        match FieldMap::new(&raw[0][..]) {
+        match FieldMap::parse_bytes(&raw[0][..]) {
             Some(n) => Ok(NT(n)),
             None => Err(Error::Header),
         }
@@ -53,71 +53,71 @@ mod tests {
 
     #[test]
     fn positive_uuid() {
-        let uuid_header = &["uuid:a984bc8c-aaf0-5dff-b980-00d098bda247".to_string().into_bytes()];
+        let header = "uuid:a984bc8c-aaf0-5dff-b980-00d098bda247";
 
-        let data = match NT::parse_header(uuid_header) {
+        let data = match NT::parse_header(&[header.to_string().into_bytes()]) {
             Ok(NT(UUID(n))) => n,
             _ => panic!("uuid Token Not Parsed"),
         };
 
-        assert!(uuid_header[0][5..].iter().zip(data.iter()).all(|(a, b)| a == b));
+        assert!(header.chars().skip(5).zip(data.chars()).all(|(a, b)| a == b));
     }
 
     #[test]
     fn positive_upnp() {
-        let upnp_header = &["upnp:rootdevice".to_string().into_bytes()];
+        let header = "upnp:rootdevice";
 
-        let data = match NT::parse_header(upnp_header) {
+        let data = match NT::parse_header(&[header.to_string().into_bytes()]) {
             Ok(NT(UPnP(n))) => n,
             _ => panic!("upnp Token Not Parsed"),
         };
 
-        assert!(upnp_header[0][5..].iter().zip(data.iter()).all(|(a, b)| a == b));
+        assert!(header.chars().skip(5).zip(data.chars()).all(|(a, b)| a == b));
     }
 
     #[test]
     fn positive_urn() {
-        let urn_header = &["urn:schemas-upnp-org:device:printer:1".to_string().into_bytes()];
+        let header = "urn:schemas-upnp-org:device:printer:1";
 
-        let data = match NT::parse_header(urn_header) {
+        let data = match NT::parse_header(&[header.to_string().into_bytes()]) {
             Ok(NT(URN(n))) => n,
             _ => panic!("urn Token Not Parsed"),
         };
 
-        assert!(urn_header[0][4..].iter().zip(data.iter()).all(|(a, b)| a == b));
+        assert!(header.chars().skip(4).zip(data.chars()).all(|(a, b)| a == b));
     }
 
     #[test]
     fn positive_unknown() {
-        let unknown_header = &["max-age:1500::upnp:rootdevice".to_string().into_bytes()];
+        let header = "max-age:1500::upnp:rootdevice";
 
-        let (k, v) = match NT::parse_header(unknown_header) {
+        let (k, v) = match NT::parse_header(&[header.to_string().into_bytes()]) {
             Ok(NT(Unknown(k, v))) => (k, v),
             _ => panic!("Unknown Token Not Parsed"),
         };
 
-        let sep_iter = b":".iter();
-        let mut original_iter = unknown_header[0][..].iter();
-        let mut result_iter = k[..].iter().chain(sep_iter).chain(v[..].iter());
+        let sep_iter = ":".chars();
+        let mut original_iter = header.chars();
+        let mut result_iter = k.chars().chain(sep_iter).chain(v.chars());
 
-        assert!(original_iter.by_ref().zip(result_iter.by_ref()).all(|(&a, &b)| a == b));
+        assert!(original_iter.by_ref().zip(result_iter.by_ref()).all(|(a, b)| a == b));
         assert!(result_iter.next().is_none() && original_iter.next().is_none());
     }
 
     #[test]
     fn positive_short_field() {
-        let short_header = &["a:a".to_string().into_bytes()];
+        let header = "a:a";
 
-        let (k, v) = match NT::parse_header(short_header) {
+        let (k, v) = match NT::parse_header(&[header.to_string().into_bytes()]) {
             Ok(NT(Unknown(k, v))) => (k, v),
             _ => panic!("Unknown Short Token Not Parsed"),
         };
 
-        let sep_iter = b":".iter();
-        let mut original_iter = short_header[0][..].iter();
-        let mut result_iter = k[..].iter().chain(sep_iter).chain(v[..].iter());
+        let sep_iter = ":".chars();
+        let mut original_iter = header.chars();
+        let mut result_iter = k.chars().chain(sep_iter).chain(v.chars());
 
-        assert!(original_iter.by_ref().zip(result_iter.by_ref()).all(|(&a, &b)| a == b));
+        assert!(original_iter.by_ref().zip(result_iter.by_ref()).all(|(a, b)| a == b));
         assert!(result_iter.next().is_none() && original_iter.next().is_none());
     }
 
@@ -132,7 +132,7 @@ mod tests {
             _ => panic!("NT Double Colon Failed To Parse"),
         };
 
-        assert_eq!(result, b":a984bc8c-aaf0-5dff-b980-00d098bda247".to_vec());
+        assert_eq!(result, ":a984bc8c-aaf0-5dff-b980-00d098bda247");
     }
 
     #[test]

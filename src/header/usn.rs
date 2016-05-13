@@ -34,8 +34,8 @@ impl Header for USN {
         }
 
         let (first, second) = match partition_pairs(raw[0][..].iter()) {
-            Some((n, Some(u))) => (FieldMap::new(&n[..]), FieldMap::new(&u[..])),
-            Some((n, None)) => (FieldMap::new(&n[..]), None),
+            Some((n, Some(u))) => (FieldMap::parse_bytes(&n[..]), FieldMap::parse_bytes(&u[..])),
+            Some((n, None)) => (FieldMap::parse_bytes(&n[..]), None),
             None => return Err(Error::Header),
         };
 
@@ -88,7 +88,7 @@ fn partition_pairs<'a, I>(header_iter: I) -> Option<(Vec<u8>, Option<Vec<u8>>)>
             if n == field::PAIR_SEPARATOR as u8 {
                 first.pop();
             }
-        };
+        }
     }
 
     match (first.is_empty(), second.is_empty()) {
@@ -111,12 +111,12 @@ mod tests {
         let USN(first, second) = USN::parse_header(double_pair_header).unwrap();
 
         match first {
-            UUID(n) => assert_eq!(&n[..], &(b"device-UUID")[..]),
+            UUID(n) => assert_eq!(n, "device-UUID"),
             _ => panic!("Didnt Match uuid"),
         };
 
         match second.unwrap() {
-            UPnP(n) => assert_eq!(&n[..], &(b"rootdevice")[..]),
+            UPnP(n) => assert_eq!(n, "rootdevice"),
             _ => panic!("Didnt Match upnp"),
         };
     }
@@ -127,7 +127,7 @@ mod tests {
         let USN(first, second) = USN::parse_header(single_pair_header).unwrap();
 
         match first {
-            URN(n) => assert_eq!(&n[..], &(b"device-URN")[..]),
+            URN(n) => assert_eq!(n, "device-URN"),
             _ => panic!("Didnt Match urn"),
         };
 
@@ -140,7 +140,7 @@ mod tests {
         let USN(first, second) = USN::parse_header(trailing_double_colon_header).unwrap();
 
         match first {
-            UPnP(n) => assert_eq!(&n[..], &(b"device-UPnP")[..]),
+            UPnP(n) => assert_eq!(n, "device-UPnP"),
             _ => panic!("Didnt Match upnp"),
         };
 
@@ -154,8 +154,8 @@ mod tests {
 
         match first {
             Unknown(k, v) => {
-                assert_eq!(&k[..], &(b"some-key")[..]);
-                assert_eq!(&v[..], &(b"device-UPnP")[..]);
+                assert_eq!(k, "some-key");
+                assert_eq!(v, "device-UPnP");
             }
             _ => panic!("Didnt Match upnp"),
         };
