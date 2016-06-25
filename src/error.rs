@@ -1,7 +1,6 @@
 use std::convert::From;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::marker::Reflect;
 
 /// Result that can return a T or an `SSDPError`.
 pub type SSDPResult<T> = Result<T, SSDPError>;
@@ -79,8 +78,6 @@ impl MsgError {
         MsgError { desc: desc }
     }
 }
-
-impl Reflect for MsgError {}
 
 impl Error for MsgError {
     fn description(&self) -> &str {
