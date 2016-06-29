@@ -1,5 +1,5 @@
-#![allow(unused_features)]
-#![feature(lookup_host, reflect_marker)]
+#![allow(unused_features)]		
+#![feature(lookup_host)]
 
 //! An asynchronous abstraction for discovering devices and services on a network.
 //!
