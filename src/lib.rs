@@ -1,3 +1,6 @@
+#![allow(unused_features)]		
+#![feature(lookup_host)]
+
 //! An asynchronous abstraction for discovering devices and services on a network.
 //!
 //! SSDP stands for Simple Service Discovery Protocol and it is a protocol that uses
