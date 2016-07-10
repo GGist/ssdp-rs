@@ -56,10 +56,15 @@ impl<T> SSDPReceiver<T>
     pub fn new(socks: Vec<UdpSocket>, time: Option<Duration>) -> io::Result<SSDPReceiver<T>> {
         let (send, recv) = mpsc::channel();
 
-        let send_socks = try!(clone_socks(&socks[..]));
+        let mut send_socks = try!(clone_socks(&socks[..]));
         let recv_addrs = try!(clone_addrs(&socks[..]));
 
         let self_kill = Arc::new(AtomicBool::new(false));
+
+        // Ensure `receive_packets` times out in the event the timeout packet is not received
+        for sock in &mut send_socks {
+            try!(sock.set_read_timeout(time));
+        }
 
         // Spawn Receiver Threads
         spawn_receivers(send_socks, self_kill.clone(), send);
@@ -195,6 +200,11 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
         trace!("Waiting on packet at {}...", recv);
         let (msg_bytes, addr) = match recv.recv_pckt() {
             Ok((bytes, addr)) => (bytes, addr),
+            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
+                // We have waited for at least the desired timeout (or possibly longer)
+                trace!("Receiver at {} timed out", recv);
+                return;
+            },
             Err(_) => {
                 continue;
             }
@@ -208,6 +218,7 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
             // be moved up and our unblock message could be processed. This
             // should not affect execution but keep in mind for logging
             // purposes.
+            trace!("Receiver at {} timed out", recv);
             return;
         }
 
