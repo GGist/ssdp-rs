@@ -51,6 +51,7 @@ fn all_local_connectors(multicast_ttl: Option<u32>, filter: IpVersionMode) -> io
     })
 }
 
+/// Invoke the closure for every local address found on the system.
 fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
     where F: FnMut(&SocketAddr) -> io::Result<Option<R>>
 {

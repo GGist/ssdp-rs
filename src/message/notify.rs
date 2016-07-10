@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::str::FromStr;
-use std::net::{SocketAddr, IpAddr, Ipv6Addr};
+use std::net::{SocketAddr, IpAddr};
 
 use hyper::header::{Header, HeaderFormat};
 
@@ -112,23 +112,26 @@ impl NotifyListener {
     pub fn listen_on_port(port: u16) -> SSDPResult<SSDPReceiver<NotifyMessage>> {
         // Generate a list of reused sockets on the standard multicast address.
         let reuse_sockets = try!(message::map_local(|&addr| match addr {
-            SocketAddr::V4(_) => {
-                let mcast_ip: IpAddr = FromStr::from_str(message::UPNP_MULTICAST_IPV4_ADDR).unwrap();
-                let s = try!(net::bind_reuse((mcast_ip, port)));
+            SocketAddr::V4(v4_addr) => {
+                let sock = try!(net::bind_reuse((*v4_addr.ip(), port)));
+
+                let mcast_ip = FromStr::from_str(message::UPNP_MULTICAST_IPV4_ADDR).unwrap();
+                
                 debug!("Joining ipv4 multicast {} at iface: {}", mcast_ip, addr);
-                try!(net::join_multicast(&s, &addr, &mcast_ip));
-                Ok(Some(s))
+                try!(net::join_multicast(&sock, &addr, &mcast_ip));
+
+                Ok(Some(sock))
             }
-            SocketAddr::V6(n) => {
-                let mcast_ip: Ipv6Addr = FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR)
+            SocketAddr::V6(v6_addr) => {
+                let sock = try!(net::bind_reuse((*v6_addr.ip(), port)));
+
+                let mcast_ip = FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR)
                                              .unwrap();
-                let mut x = n.clone();
-                x.set_ip(mcast_ip);
-                x.set_port(port);
-                let s = try!(net::bind_reuse(x));
+                
                 debug!("Joining ipv6 multicast {} at iface: {}", mcast_ip, addr);
-                try!(net::join_multicast(&s, &addr, &IpAddr::V6(mcast_ip)));
-                Ok(Some(s))
+                try!(net::join_multicast(&sock, &addr, &IpAddr::V6(mcast_ip)));
+
+                Ok(Some(sock))
             }
         }));
 
