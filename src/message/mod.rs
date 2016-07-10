@@ -87,8 +87,7 @@ fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
 #[cfg(windows)]
 fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
     let host_iter = try!(net::lookup_host(""));
-    Ok(host_iter.filter_map(|host| host.ok())
-                .collect())
+    Ok(host_iter.collect())
 }
 
 /// Generate a list of some object R constructed from all local `Ipv4Addr` objects.
