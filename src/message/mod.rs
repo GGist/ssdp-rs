@@ -51,6 +51,7 @@ fn all_local_connectors(multicast_ttl: Option<u32>, filter: IpVersionMode) -> io
     })
 }
 
+/// Invoke the closure for every local address found on the system.
 fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
     where F: FnMut(&SocketAddr) -> io::Result<Option<R>>
 {
@@ -87,8 +88,7 @@ fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
 #[cfg(windows)]
 fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
     let host_iter = try!(net::lookup_host(""));
-    Ok(host_iter.filter_map(|host| host.ok())
-                .collect())
+    Ok(host_iter.collect())
 }
 
 /// Generate a list of some object R constructed from all local `Ipv4Addr` objects.
