@@ -216,14 +216,13 @@ impl SearchListener {
 
                 debug!("Joining ipv4 multicast {} at iface: {}", mcast_ip, addr);
                 try!(net::join_multicast(&sock, &addr, &mcast_ip));
-                
+
                 Ok(Some(sock))
             }
             SocketAddr::V6(v6_addr) => {
                 let sock = try!(net::bind_reuse((*v6_addr.ip(), port)));
 
-                let mcast_ip = FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR)
-                                             .unwrap();
+                let mcast_ip = FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR).unwrap();
 
                 debug!("Joining ipv6 multicast {} at iface: {}", mcast_ip, addr);
                 try!(net::join_multicast(&sock, &addr, &mcast_ip));

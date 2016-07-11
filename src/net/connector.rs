@@ -55,10 +55,10 @@ impl NetworkConnector for UdpConnector {
                 let mut addr: SocketAddrV6 = if host.find('[') == Some(0) &&
                                                 host.rfind(']') == Some(host.len() - 1) {
                     try!(FromStr::from_str(format!("{}:{}", host, port).as_str())
-                             .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err)))
+                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err)))
                 } else {
                     try!(FromStr::from_str(format!("[{}]:{}", host, port).as_str())
-                             .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err)))
+                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err)))
                 };
                 addr.set_flowinfo(n.flowinfo());
                 addr.set_scope_id(n.scope_id());
