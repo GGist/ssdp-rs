@@ -200,7 +200,9 @@ fn receive_packets<T>(recv: PacketReceiver, kill: Arc<AtomicBool>, send: Sender<
         trace!("Waiting on packet at {}...", recv);
         let (msg_bytes, addr) = match recv.recv_pckt() {
             Ok((bytes, addr)) => (bytes, addr),
-            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
+            // Unix returns WouldBlock on timeout while Windows returns TimedOut
+            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock ||
+                            err.kind() == io::ErrorKind::TimedOut => {
                 // We have waited for at least the desired timeout (or possibly longer)
                 trace!("Receiver at {} timed out", recv);
                 return;
