@@ -98,6 +98,6 @@ fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
 fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
     let iface_iter = try!(ifaces::Interface::get_all()).into_iter();
     Ok(iface_iter.filter(|iface| iface.kind != ifaces::Kind::Packet)
-                 .filter_map(|iface| iface.addr)
-                 .collect())
+        .filter_map(|iface| iface.addr)
+        .collect())
 }
