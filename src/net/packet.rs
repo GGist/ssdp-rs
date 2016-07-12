@@ -28,7 +28,8 @@ impl PacketReceiver {
         if size > pckt_buf.len() {
             Err(Error::new(ErrorKind::Other, "UdpSocket Reported Receive Length Greater Than Buffer"))
         } else {
-            unsafe { pckt_buf.set_len(size) };
+            // `truncate` does not reallocate the vec's backing storage
+            pckt_buf.truncate(size);
 
             Ok((pckt_buf, addr))
         }
