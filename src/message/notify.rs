@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::str::FromStr;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, IpAddr, Ipv6Addr};
 
 use hyper::header::{Header, HeaderFormat};
 
@@ -123,12 +123,17 @@ impl NotifyListener {
                 Ok(Some(sock))
             }
             SocketAddr::V6(v6_addr) => {
-                let sock = try!(net::bind_reuse((*v6_addr.ip(), port)));
+                let mcast_ip: Ipv6Addr = FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR)
+                    .unwrap();
 
-                let mcast_ip = FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR).unwrap();
+                // clone to preserve interface scope
+                let mut x = v6_addr.clone();
+                x.set_ip(mcast_ip);
+                x.set_port(port);
+                let sock = try!(net::bind_reuse(x));
 
                 debug!("Joining ipv6 multicast {} at iface: {}", mcast_ip, addr);
-                try!(net::join_multicast(&sock, &addr, &mcast_ip));
+                try!(net::join_multicast(&sock, &addr, &IpAddr::V6(mcast_ip)));
 
                 Ok(Some(sock))
             }
