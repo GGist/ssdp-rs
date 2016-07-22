@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::str::FromStr;
-use std::net::SocketAddr;
+use std::net::{SocketAddr};
 
 use hyper::header::{Header, HeaderFormat};
 
@@ -110,31 +109,47 @@ impl NotifyListener {
 
     /// Listen for notify messages on a custom port on all local network interfaces.
     pub fn listen_on_port(port: u16) -> SSDPResult<SSDPReceiver<NotifyMessage>> {
+        let mut ipv4_interface = None;
+        let mut ipv6_interface = None;
+        
         // Generate a list of reused sockets on the standard multicast address.
-        let reuse_sockets = try!(message::map_local(|&addr| match addr {
-            SocketAddr::V4(v4_addr) => {
-                let sock = try!(net::bind_reuse((*v4_addr.ip(), port)));
-
-                let mcast_ip = FromStr::from_str(message::UPNP_MULTICAST_IPV4_ADDR).unwrap();
-
+        let _: Vec<()> = try!(message::map_local(|&addr| match addr {
+            SocketAddr::V4(_) => {
+                let mcast_ip = message::UPNP_MULTICAST_IPV4_ADDR.parse().unwrap();
+                
+                if ipv4_interface.is_none() {
+                    ipv4_interface = Some(try!(net::bind_reuse(("0.0.0.0", port))));
+                }
+                let ref sock = ipv4_interface.as_ref().unwrap();
+                
                 debug!("Joining ipv4 multicast {} at iface: {}", mcast_ip, addr);
                 try!(net::join_multicast(&sock, &addr, &mcast_ip));
 
-                Ok(Some(sock))
+                Ok(None)
             }
             SocketAddr::V6(v6_addr) => {
-                let sock = try!(net::bind_reuse((*v6_addr.ip(), port)));
-
-                let mcast_ip = FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR).unwrap();
-
+                let mcast_ip = message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR.parse().unwrap();
+                
+                if ipv6_interface.is_none() {
+                    ipv6_interface = Some(try!(net::bind_reuse(("::", port))));
+                }
+                let ref sock = ipv6_interface.as_ref().unwrap();
+                
                 debug!("Joining ipv6 multicast {} at iface: {}", mcast_ip, addr);
-                try!(net::join_multicast(&sock, &addr, &mcast_ip));
-
-                Ok(Some(sock))
+                if v6_addr.scope_id() != 0 {
+                    try!(net::join_multicast(&sock, &addr, &mcast_ip));
+                }
+                
+                Ok(None)
             }
         }));
 
-        Ok(try!(SSDPReceiver::new(reuse_sockets, None)))
+        let sockets = vec![ipv4_interface, ipv6_interface]
+            .into_iter()
+            .flat_map(|opt_interface| opt_interface)
+            .collect();
+
+        Ok(try!(SSDPReceiver::new(sockets, None)))
     }
 }
 
