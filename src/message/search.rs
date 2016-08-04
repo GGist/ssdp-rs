@@ -211,7 +211,7 @@ impl SearchListener {
         let mut ipv6_sock = None;
 
         // Generate a list of reused sockets on the standard multicast address.
-        let addrs: Vec<SocketAddr> = try!(message::map_local(|&addr| Ok(Some(addr))));
+        let addrs: Vec<SocketAddr> = try!(message::map_local(message::filter_global_v6_addr));
 
         for addr in addrs {
             match addr {

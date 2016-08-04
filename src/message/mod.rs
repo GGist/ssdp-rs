@@ -37,17 +37,33 @@ pub enum MessageType {
     Response,
 }
 
+/// Filter all global IPv6 addresses.
+fn filter_global_v6_addr(addr: &SocketAddr) -> io::Result<Option<SocketAddr>> {
+    match addr {
+        &SocketAddr::V6(v6_addr) if v6_addr.ip().is_global() => Ok(None),
+        addr => Ok(Some(*addr))
+    }
+}
+
 /// Generate `UdpConnector` objects for all local `IPv4` interfaces.
 fn all_local_connectors(multicast_ttl: Option<u32>, filter: IpVersionMode) -> io::Result<Vec<UdpConnector>> {
     trace!("Fetching all local connectors");
-    map_local(|&addr| match (&filter, addr) {
-        (&IpVersionMode::V4Only, SocketAddr::V4(n)) |
-        (&IpVersionMode::Any, SocketAddr::V4(n)) => {
-            Ok(Some(try!(UdpConnector::new((*n.ip(), 0), multicast_ttl))))
+    map_local(|addr| {
+        let local_addr = if let Ok(Some(addr)) = filter_global_v6_addr(addr) {
+            addr
+        } else {
+            return Ok(None)
+        };
+
+        match (&filter, local_addr) {
+            (&IpVersionMode::V4Only, SocketAddr::V4(n)) |
+            (&IpVersionMode::Any, SocketAddr::V4(n)) => {
+                Ok(Some(try!(UdpConnector::new((*n.ip(), 0), multicast_ttl))))
+            }
+            (&IpVersionMode::V6Only, SocketAddr::V6(n)) |
+            (&IpVersionMode::Any, SocketAddr::V6(n)) => Ok(Some(try!(UdpConnector::new(n, multicast_ttl)))),
+            _ => Ok(None),
         }
-        (&IpVersionMode::V6Only, SocketAddr::V6(n)) |
-        (&IpVersionMode::Any, SocketAddr::V6(n)) => Ok(Some(try!(UdpConnector::new(n, multicast_ttl)))),
-        _ => Ok(None),
     })
 }
 
