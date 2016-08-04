@@ -1,5 +1,5 @@
 #![allow(unused_features)]
-#![feature(lookup_host)]
+#![feature(lookup_host, ip)]
 
 //! An asynchronous abstraction for discovering devices and services on a network.
 //!
