@@ -51,7 +51,9 @@ fn all_local_connectors(multicast_ttl: Option<u32>, filter: IpVersionMode) -> io
     })
 }
 
-/// Invoke the closure for every local address found on the system.
+/// Invoke the closure for every local address found on the system
+///
+/// This method filters out _loopback_ and _global_ addresses.
 fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
     where F: FnMut(&SocketAddr) -> io::Result<Option<R>>
 {
@@ -62,20 +64,18 @@ fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
     for addr in addrs_iter {
         trace!("Found {}", addr);
         match addr {
-            SocketAddr::V4(n) => {
-                if !n.ip().is_loopback() {
-                    if let Some(x) = try!(f(&addr)) {
-                        obj_list.push(x);
-                    }
+            SocketAddr::V4(n) if !n.ip().is_loopback() => {
+                if let Some(x) = try!(f(&addr)) {
+                    obj_list.push(x);
                 }
             }
-            SocketAddr::V6(n) => {
-                if !n.ip().is_loopback() {
-                    if let Some(x) = try!(f(&addr)) {
-                        obj_list.push(x);
-                    }
+            // Filter all loopback and global IPv6 addresses
+            SocketAddr::V6(n) if !n.ip().is_loopback() && !n.ip().is_global() => {
+                if let Some(x) = try!(f(&addr)) {
+                    obj_list.push(x);
                 }
             }
+            _ => (),
         }
     }
 
