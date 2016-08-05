@@ -1,6 +1,6 @@
 [package]
 name = "ssdp"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["GGist <amiller4421@gmail.com>", "Ignacio Corderi <icorderi@msn.com>"]
 description = "An asynchronous abstraction for discovering devices and services on a network."
 documentation = "http://ggist.github.io/ssdp-rs/index.html"
