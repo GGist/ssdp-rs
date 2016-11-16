@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use ssdp::FieldMap;
 use ssdp::header::{HeaderMut, NT, NTS, USN};
-use ssdp::message::{NotifyListener, NotifyMessage};
+use ssdp::message::{NotifyListener, NotifyMessage, Listen};
 
 fn main() {
     thread::spawn(|| {
