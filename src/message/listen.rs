@@ -13,6 +13,23 @@ pub trait Listen {
         Self::listen_on_port(message::UPNP_MULTICAST_PORT)
     }
 
+    /// Listen on any interface
+    #[cfg(linux)]
+    fn listen_any_on_port(port: u16) -> SSDPResult<SSDPReceiver<Self::Message>> {
+        // Ipv4
+        let mcast_ip = message::UPNP_MULTICAST_IPV4_ADDR.parse().unwrap();
+        let ipv4_sock = try!(net::bind_reuse(("0.0.0.0", port)));
+        try!(ipv4_sock.join_multicast_v4(&mcast_ip, &"0.0.0.0".parse().unwrap()));
+
+        // Ipv6
+        let mcast_ip = message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR.parse().unwrap();
+        let ipv6_sock = try!(net::bind_reuse(("::", port)));
+        try!(ipv6_sock.join_multicast_v6(&mcast_ip, 0));
+
+        let sockets = vec![ipv4_sock, ipv6_sock];
+        Ok(try!(SSDPReceiver::new(sockets, None)))
+    }
+
     /// Listen for messages on a custom port on all local network interfaces.
     fn listen_on_port(port: u16) -> SSDPResult<SSDPReceiver<Self::Message>> {
         let mut ipv4_sock = None;
