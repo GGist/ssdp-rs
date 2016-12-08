@@ -7,7 +7,7 @@ use std::io;
 
 use hyper::header::{Header, HeaderFormat};
 
-use error::{SSDPResult, MsgError};
+use error::SSDPResult;
 use header::{HeaderRef, HeaderMut, MX};
 use message::{self, MessageType, Listen};
 use message::ssdp::SSDPMessage;
@@ -100,7 +100,7 @@ impl Default for SearchRequest {
 fn multicast_timeout(mx: Option<&MX>) -> SSDPResult<Duration> {
     match mx {
         Some(&MX(n)) => Ok(Duration::new((n + NETWORK_TIMEOUT_OVERHEAD) as u64, 0)),
-        None => try!(Err(MsgError::new("Multicast Searches Require An MX Header"))),
+        None => try!(Err("Multicast Searches Require An MX Header")),
     }
 }
 
@@ -117,7 +117,7 @@ impl FromRawSSDP for SearchRequest {
         let message = try!(SSDPMessage::raw_ssdp(bytes));
 
         if message.message_type() != MessageType::Search {
-            try!(Err(MsgError::new("SSDP Message Received Is Not A SearchRequest")))
+            try!(Err("SSDP Message Received Is Not A SearchRequest"))
         } else {
             Ok(SearchRequest { message: message })
         }
@@ -208,7 +208,7 @@ impl FromRawSSDP for SearchResponse {
         let message = try!(SSDPMessage::raw_ssdp(bytes));
 
         if message.message_type() != MessageType::Response {
-            try!(Err(MsgError::new("SSDP Message Received Is Not A SearchResponse")))
+            try!(Err("SSDP Message Received Is Not A SearchResponse"))
         } else {
             Ok(SearchResponse { message: message })
         }

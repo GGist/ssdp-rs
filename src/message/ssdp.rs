@@ -197,7 +197,7 @@ impl FromRawSSDP for SSDPMessage {
         } else {
             debug!("Received Invalid HTTP: {}", String::from_utf8_lossy(bytes));
 
-            Err(SSDPError::InvalidHttp(bytes.to_owned()))
+            Err(SSDPError::InvalidHttp(bytes.to_owned()).into())
         }
     }
 }
@@ -232,13 +232,13 @@ fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSD
                         headers: headers,
                     })
                 }
-                _ => Err(SSDPError::InvalidMethod(n)),
+                _ => Err(SSDPError::InvalidMethod(n).into()),
             }
         }
-        (n, RequestUri::Star) => Err(SSDPError::InvalidMethod(n.to_string())),
+        (n, RequestUri::Star) => Err(SSDPError::InvalidMethod(n.to_string()).into()),
         (_, RequestUri::AbsolutePath(n)) |
-        (_, RequestUri::Authority(n)) => Err(SSDPError::InvalidUri(n)),
-        (_, RequestUri::AbsoluteUri(n)) => Err(SSDPError::InvalidUri(n.into_string())),
+        (_, RequestUri::Authority(n)) => Err(SSDPError::InvalidUri(n).into()),
+        (_, RequestUri::AbsoluteUri(n)) => Err(SSDPError::InvalidUri(n.into_string()).into()),
     }
 }
 
@@ -259,7 +259,7 @@ fn message_from_response(parts: Incoming<RawStatus>) -> SSDPResult<SSDPMessage> 
 /// Validate the HTTP version for an SSDP message.
 fn validate_http_version(version: HttpVersion) -> SSDPResult<()> {
     if version != HttpVersion::Http11 {
-        Err(SSDPError::InvalidHttpVersion)
+        Err(SSDPError::InvalidHttpVersion.into())
     } else {
         Ok(())
     }
@@ -272,7 +272,7 @@ fn validate_http_host<T>(headers: T) -> SSDPResult<()>
     // Shouldn't have to do this but hyper doesn't make sure that HTTP/1.1
     // messages contain Host headers so we will assure conformance ourselves.
     if headers.get::<Host>().is_none() {
-        Err(SSDPError::MissingHeader(Host::header_name()))
+        Err(SSDPError::MissingHeader(Host::header_name()).into())
     } else {
         Ok(())
     }
@@ -281,7 +281,7 @@ fn validate_http_host<T>(headers: T) -> SSDPResult<()>
 /// Validate the response code for an SSDP message.
 fn validate_response_code(code: u16) -> SSDPResult<()> {
     if code != VALID_RESPONSE_CODE {
-        Err(SSDPError::ResponseCode(code))
+        Err(SSDPError::ResponseCode(code).into())
     } else {
         Ok(())
     }

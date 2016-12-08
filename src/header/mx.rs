@@ -27,7 +27,7 @@ pub struct MX(pub u8);
 impl MX {
     pub fn new(wait_bound: u8) -> SSDPResult<MX> {
         if wait_bound < MX_HEADER_MIN || wait_bound > MX_HEADER_MAX {
-            Err(SSDPError::InvalidHeader(MX_HEADER_NAME, "Supplied Wait Bound Is Out Of Bounds"))
+            Err(SSDPError::InvalidHeader(MX_HEADER_NAME, "Supplied Wait Bound Is Out Of Bounds").into())
         } else {
             Ok(MX(wait_bound))
         }

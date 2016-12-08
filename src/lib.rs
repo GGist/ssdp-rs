@@ -1,5 +1,6 @@
 #![allow(unused_features)]
 #![feature(lookup_host, ip)]
+#![recursion_limit = "1024"]
 
 //! An asynchronous abstraction for discovering devices and services on a network.
 //!
@@ -15,6 +16,8 @@ extern crate time;
 #[cfg(not(windows))]
 extern crate ifaces;
 extern crate net2;
+#[macro_use]
+extern crate error_chain;
 
 mod error;
 mod field;
