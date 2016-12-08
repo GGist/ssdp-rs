@@ -6,7 +6,7 @@
 error_chain! {
 
     types {
-        Error, SSDPError, ResultExt;
+        SSDPError, SSDPErrorKind, ResultExt;
     }
     
     errors {
@@ -51,7 +51,7 @@ error_chain! {
         ///
         /// Header name with error message are supplied.
         InvalidHeader(header:&'static str, msg:&'static str) {
-            description("invalud header")
+            description("invalid header")
             display("invalid header: '{}': {}", header, msg)
         }
     }
@@ -64,4 +64,5 @@ error_chain! {
     }
 }
 
-pub type SSDPResult<T> = Result<T,Error>;
+pub type SSDPResult<T> = Result<T,SSDPError>;
+
