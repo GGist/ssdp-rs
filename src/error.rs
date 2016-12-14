@@ -1,12 +1,12 @@
-//use std::convert::From;
-//use std::error::Error;
-//use std::fmt::{self, Display, Formatter};
+use std::io;
+use std::net;
+use hyper;
 
 /// Enumerates all errors that can occur when dealing with an SSDP message.
 error_chain! {
 
     types {
-        SSDPError, SSDPErrorKind, ResultExt;
+        SSDPError, SSDPErrorKind, SSDPResultExt, SSDPResult;
     }
     
     errors {
@@ -57,12 +57,9 @@ error_chain! {
     }
 
     foreign_links {
-        Io(::std::io::Error) #[cfg(unix)];
-        AddrParseError(::std::net::AddrParseError);
-        Hyper(::hyper::Error);
-        HyperParseError(::hyper::error::ParseError);
+        Io(io::Error);
+        AddrParseError(net::AddrParseError);
+        Hyper(hyper::Error);
+        HyperParseError(hyper::error::ParseError);
     }
 }
-
-pub type SSDPResult<T> = Result<T,SSDPError>;
-
