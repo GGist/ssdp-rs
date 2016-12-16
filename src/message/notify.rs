@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 
 use hyper::header::{Header, HeaderFormat};
 
-use error::{SSDPResult, MsgError};
+use error::SSDPResult;
 use header::{HeaderRef, HeaderMut};
 use message::{self, MessageType, Listen};
 use message::ssdp::SSDPMessage;
@@ -65,7 +65,7 @@ impl FromRawSSDP for NotifyMessage {
         let message = try!(SSDPMessage::raw_ssdp(bytes));
 
         if message.message_type() != MessageType::Notify {
-            try!(Err(MsgError::new("SSDP Message Received Is Not A NotifyMessage")))
+            try!(Err("SSDP Message Received Is Not A NotifyMessage"))
         } else {
             Ok(NotifyMessage { message: message })
         }
