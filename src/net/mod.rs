@@ -9,7 +9,7 @@ use std::net::{SocketAddr, IpAddr};
 
 #[cfg(not(windows))]
 use net2::unix::UnixUdpBuilderExt;
-use net2::{UdpBuilder};
+use net2::UdpBuilder;
 
 pub mod connector;
 pub mod packet;

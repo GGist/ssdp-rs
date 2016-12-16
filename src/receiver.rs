@@ -36,7 +36,7 @@ impl<T> Iterator for SSDPIter<T> {
 
 /// A non-blocking SSDP message receiver.
 pub struct SSDPReceiver<T> {
-    recvr: Receiver<(T, SocketAddr)>
+    recvr: Receiver<(T, SocketAddr)>,
 }
 
 impl<T> SSDPReceiver<T>
@@ -59,9 +59,7 @@ impl<T> SSDPReceiver<T>
         // Spawn Receiver Threads
         spawn_receivers(socks, send);
 
-        Ok(SSDPReceiver {
-            recvr: recv
-        })
+        Ok(SSDPReceiver { recvr: recv })
     }
 }
 
@@ -137,7 +135,7 @@ fn receive_packets<T>(recv: PacketReceiver, send: Sender<(T, SocketAddr)>)
                 // We have waited for at least the desired timeout (or possibly longer)
                 trace!("Receiver at {} timed out", recv);
                 return;
-            },
+            }
             Err(_) => {
                 continue;
             }
