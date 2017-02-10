@@ -15,6 +15,7 @@ pub mod connector;
 pub mod packet;
 pub mod sender;
 
+#[derive(Copy, Clone)]
 pub enum IpVersionMode {
     V4Only,
     V6Only,

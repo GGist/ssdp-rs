@@ -1,15 +1,15 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::net::SocketAddr;
 
 use hyper::header::{Header, HeaderFormat};
 
 use error::SSDPResult;
 use header::{HeaderRef, HeaderMut};
-use message::{self, MessageType, Listen};
+use message::{MessageType, Listen, Config};
 use message::ssdp::SSDPMessage;
+use message::multicast::{self, Multicast};
 use receiver::FromRawSSDP;
-use net;
+
 
 /// Notify message that can be sent via multicast to devices on the network.
 #[derive(Debug, Clone)]
@@ -22,34 +22,13 @@ impl NotifyMessage {
     pub fn new() -> Self {
         NotifyMessage { message: SSDPMessage::new(MessageType::Notify) }
     }
+}
 
-    /// Send this notify message to the standard multicast address:port.
-    pub fn multicast(&mut self) -> SSDPResult<()> {
-        self.multicast_with_port(message::UPNP_MULTICAST_PORT)
-    }
+impl Multicast for NotifyMessage {
+    type Item = ();
 
-    /// Send this notify message to the standard multicast address but a custom port.
-    pub fn multicast_with_port(&mut self, port: u16) -> SSDPResult<()> {
-        let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);
-
-        let mut connectors = try!(message::all_local_connectors(mcast_ttl, net::IpVersionMode::Any));
-
-        // Send On All Connectors
-        for conn in &mut connectors {
-            match try!(conn.local_addr()) {
-                SocketAddr::V4(n) => {
-                    let mcast_addr = (message::UPNP_MULTICAST_IPV4_ADDR, port);
-                    debug!("Sending ipv4 multicast through {} to {:?}", n, mcast_addr);
-                    try!(self.message.send(conn, &mcast_addr));
-                }
-                SocketAddr::V6(n) => {
-                    let mcast_addr = (message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR, port);
-                    debug!("Sending Ipv6 multicast through {} to {:?}", n, mcast_addr);
-                    try!(self.message.send(conn, &mcast_addr));
-                }
-            }
-        }
-
+    fn multicast_with_config(&self, config: &Config) -> SSDPResult<Self::Item> {
+        multicast::send(&self.message, config)?;
         Ok(())
     }
 }

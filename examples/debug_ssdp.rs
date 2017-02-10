@@ -4,7 +4,7 @@ extern crate ssdp;
 use log::{Log, LogRecord, LogLevelFilter, LogMetadata};
 
 use ssdp::header::{HeaderMut, Man, MX, ST};
-use ssdp::message::SearchRequest;
+use ssdp::message::{SearchRequest, Multicast};
 
 struct SimpleLogger;
 

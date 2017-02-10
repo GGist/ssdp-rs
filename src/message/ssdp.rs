@@ -22,6 +22,7 @@ use message::MessageType;
 use net;
 use receiver::FromRawSSDP;
 
+
 /// Only Valid `SearchResponse` Code
 const VALID_RESPONSE_CODE: u16 = 200;
 

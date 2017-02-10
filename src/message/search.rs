@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::net::{ToSocketAddrs, SocketAddr, SocketAddrV6};
-use std::str::FromStr;
+use std::net::ToSocketAddrs;
 use std::time::Duration;
 use std::io;
 
@@ -9,10 +8,12 @@ use hyper::header::{Header, HeaderFormat};
 
 use error::SSDPResult;
 use header::{HeaderRef, HeaderMut, MX};
-use message::{self, MessageType, Listen};
+use message::{self, MessageType, Listen, Config};
 use message::ssdp::SSDPMessage;
+use message::multicast::{self, Multicast};
 use receiver::{SSDPReceiver, FromRawSSDP};
 use net;
+
 
 /// Overhead to add to device response times to account for transport time.
 const NETWORK_TIMEOUT_OVERHEAD: u8 = 1;
@@ -39,7 +40,7 @@ impl SearchRequest {
     /// on either different subnets or different ip address ranges.
     pub fn unicast<A: ToSocketAddrs>(&mut self, dst_addr: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
         let mode = try!(net::IpVersionMode::from_addr(&dst_addr));
-        let mut connectors = try!(message::all_local_connectors(None, mode));
+        let mut connectors = try!(message::all_local_connectors(None, &mode));
 
         // Send On All Connectors
         for connector in &mut connectors {
@@ -53,36 +54,15 @@ impl SearchRequest {
 
         Ok(try!(SSDPReceiver::new(raw_connectors, opt_timeout)))
     }
+}
 
-    /// Send this search request to the standard multicast address:port.
-    pub fn multicast(&mut self) -> SSDPResult<SSDPReceiver<SearchResponse>> {
-        self.multicast_with_port(message::UPNP_MULTICAST_PORT)
-    }
+impl Multicast for SearchRequest {
+    type Item = SSDPReceiver<SearchResponse>;
 
-    /// Send this search request to the standard multicast address but a custom port
-    pub fn multicast_with_port(&mut self, port: u16) -> SSDPResult<SSDPReceiver<SearchResponse>> {
+    fn multicast_with_config(&self, config: &Config) -> SSDPResult<Self::Item> {
+        let connectors = multicast::send(&self.message, config)?;
+
         let mcast_timeout = try!(multicast_timeout(self.get::<MX>()));
-        let mcast_ttl = Some(message::UPNP_MULTICAST_TTL);
-
-        let mut connectors = try!(message::all_local_connectors(mcast_ttl, net::IpVersionMode::Any));
-
-        // Send On All Connectors
-        for conn in &mut connectors {
-            match try!(conn.local_addr()) {
-                SocketAddr::V4(_) => {
-                    try!(self.message.send(conn, &(message::UPNP_MULTICAST_IPV4_ADDR, port)))
-                }
-                SocketAddr::V6(n) => {
-                    try!(self.message.send(conn,
-                                           &SocketAddrV6::new(try!(
-                    FromStr::from_str(message::UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR)),
-                                                              port,
-                                                              n.flowinfo(),
-                                                              n.scope_id())))
-                }
-            }
-        }
-
         let mut raw_connectors = Vec::with_capacity(connectors.len());
         raw_connectors.extend(connectors.into_iter().map(|conn| conn.deconstruct()));
 
@@ -169,7 +149,7 @@ impl SearchResponse {
     /// on either different subnets or different ip address ranges.
     pub fn unicast<A: ToSocketAddrs>(&mut self, dst_addr: A) -> SSDPResult<()> {
         let mode = try!(net::IpVersionMode::from_addr(&dst_addr));
-        let mut connectors = try!(message::all_local_connectors(None, mode));
+        let mut connectors = try!(message::all_local_connectors(None, &mode));
 
         let mut success_count = 0;
         let mut error_count = 0;
