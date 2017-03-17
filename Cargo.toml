@@ -11,10 +11,10 @@ readme = "README.md"
 repository = "https://github.com/GGist/ssdp-rs"
 
 [dependencies]
-log = "0.3.0"
+log = "0.3"
 net2 = "0.2.23"
 time = "0.1"
-error-chain = "0.7"
+error-chain = "0.10"
 
 [dependencies.hyper]
 default-features = false
