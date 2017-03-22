@@ -1,6 +1,6 @@
 [package]
 name = "ssdp"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["GGist <amiller4421@gmail.com>", "Ignacio Corderi <icorderi@msn.com>"]
 description = "An asynchronous abstraction for discovering devices and services on a network."
 documentation = "http://ggist.github.io/ssdp-rs/index.html"
@@ -11,10 +11,10 @@ readme = "README.md"
 repository = "https://github.com/GGist/ssdp-rs"
 
 [dependencies]
-log = "0.3.0"
+log = "0.3"
 net2 = "0.2.23"
 time = "0.1"
-error-chain = "0.7"
+error-chain = "0.10"
 
 [dependencies.hyper]
 default-features = false
