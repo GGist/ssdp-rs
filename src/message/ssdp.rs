@@ -190,16 +190,21 @@ impl FromRawSSDP for SSDPMessage {
 
             log_message_result(&message_result, bytes);
             message_result
-        } else if let Ok(parts) = h1::parse_response(&mut buf_reader) {
-            let message_result = message_from_response(parts);
-
-            log_message_result(&message_result, bytes);
-            message_result
         } else {
-            debug!("Received Invalid HTTP: {}", String::from_utf8_lossy(bytes));
+            match h1::parse_response(&mut buf_reader) {
+                Ok(parts) => {
+                    let message_result = message_from_response(parts);
 
-            Err(SSDPErrorKind::InvalidHttp(bytes.to_owned()).into())
-        }
+                    log_message_result(&message_result, bytes);
+                    message_result
+                },
+                Err(err) => {
+                    debug!("Failed parsing http response: {}, data: {}", err, String::from_utf8_lossy(bytes));
+
+                    Err(SSDPErrorKind::InvalidHttp(bytes.to_owned()).into())
+                }
+            }
+        } 
     }
 }
 
