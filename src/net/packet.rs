@@ -3,7 +3,7 @@ use std::net::{UdpSocket, SocketAddr};
 use std::fmt;
 
 /// Maximum length for packets received on a `PacketReceiver`.
-pub const MAX_PCKT_LEN: usize = 600;
+pub const MAX_PCKT_LEN: usize = 1500;
 
 /// A `PacketReceiver` that abstracts over a network socket and reads full packets
 /// from the connection. Packets received from this connection are assumed to
