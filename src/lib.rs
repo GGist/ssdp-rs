@@ -1,5 +1,5 @@
 #![allow(unused_features)]
-#![feature(lookup_host, ip)]
+#![feature(ip)]
 #![recursion_limit = "1024"]
 
 //! An asynchronous abstraction for discovering devices and services on a network.
@@ -30,3 +30,4 @@ pub mod message;
 pub use error::{SSDPError, SSDPErrorKind, SSDPResultExt, SSDPResult};
 pub use field::FieldMap;
 pub use receiver::{SSDPReceiver, SSDPIter};
+pub use net::IpVersionMode;
