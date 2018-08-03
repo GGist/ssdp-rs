@@ -29,3 +29,4 @@ pub mod message;
 pub use error::{SSDPError, SSDPErrorKind, SSDPResultExt, SSDPResult};
 pub use field::FieldMap;
 pub use receiver::{SSDPReceiver, SSDPIter};
+pub use net::IpVersionMode;
