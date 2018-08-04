@@ -1,8 +1,6 @@
 //! Messaging primitives for discovering devices and services.
 
 use std::io;
-#[cfg(windows)]
-use std::net;
 use std::net::SocketAddr;
 
 use net::connector::UdpConnector;
@@ -14,13 +12,12 @@ mod ssdp;
 pub mod listen;
 pub mod multicast;
 
+use get_if_addrs;
+
 pub use message::multicast::Multicast;
 pub use message::search::{SearchRequest, SearchResponse, SearchListener};
 pub use message::notify::{NotifyMessage, NotifyListener};
 pub use message::listen::Listen;
-
-#[cfg(not(windows))]
-use ifaces;
 
 /// Multicast Socket Information
 pub const UPNP_MULTICAST_IPV4_ADDR: &'static str = "239.255.255.250";
@@ -141,19 +138,8 @@ fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
 /// Generate a list of some object R constructed from all local `Ipv4Addr` objects.
 ///
 /// If any of the `SocketAddr`'s fail to resolve, this function will not return an error.
-#[cfg(windows)]
 fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
-    let host_iter = try!(net::lookup_host(""));
-    Ok(host_iter.collect())
-}
-
-/// Generate a list of some object R constructed from all local `Ipv4Addr` objects.
-///
-/// If any of the `SocketAddr`'s fail to resolve, this function will not return an error.
-#[cfg(not(windows))]
-fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
-    let iface_iter = try!(ifaces::Interface::get_all()).into_iter();
-    Ok(iface_iter.filter(|iface| iface.kind != ifaces::Kind::Packet)
-        .filter_map(|iface| iface.addr)
+    let iface_iter = try!(get_if_addrs::get_if_addrs()).into_iter();
+    Ok(iface_iter.filter_map(|iface| Some(SocketAddr::new(iface.addr.ip(), 0)))
         .collect())
 }
