@@ -15,6 +15,7 @@ log = "0.3"
 net2 = "0.2.23"
 time = "0.1"
 error-chain = "0.10"
+get_if_addrs = "0.5.3"
 
 [dependencies.hyper]
 default-features = false
@@ -22,6 +23,3 @@ version = "0.10.4"
 
 [features]
 unstable = []
-
-[target."cfg(not(windows))".dependencies]
-ifaces = "0.0.3"
