@@ -1,5 +1,4 @@
 #![allow(unused_features)]
-#![feature(ip)]
 #![recursion_limit = "1024"]
 
 //! An asynchronous abstraction for discovering devices and services on a network.

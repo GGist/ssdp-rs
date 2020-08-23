@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use net::connector::UdpConnector;
 use net::IpVersionMode;
 
+mod ip;
 mod notify;
 mod search;
 mod ssdp;
@@ -123,7 +124,7 @@ fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
                 }
             }
             // Filter all loopback and global IPv6 addresses
-            SocketAddr::V6(n) if !n.ip().is_loopback() && !n.ip().is_global() => {
+            SocketAddr::V6(n) if !n.ip().is_loopback() && !ip::is_global(&addr.ip()) => {
                 if let Some(x) = try!(f(&addr)) {
                     obj_list.push(x);
                 }
